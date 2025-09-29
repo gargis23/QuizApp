@@ -2,11 +2,40 @@
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
 
+/* Light Mode Variables */
+:root {
+  --bg-primary: #F6F4FF;
+  --bg-secondary: #F0EBFF;
+  --text-primary: #1E1E2F;
+  --text-secondary: #4B4B65;
+  --border-color: #E1DFF5;
+  --purple-primary: #7A42FF;
+  --pink-accent: #FF6BB5;
+}
+
+/* Dark Mode Variables */
+.dark {
+  --bg-primary: #111827;
+  --bg-secondary: #1F2937;
+  --text-primary: #ffffff;
+  --text-secondary: #9CA3AF;
+  --border-color: #374151;
+  --purple-primary: #8B5CF6;
+  --pink-accent: #EC4899;
+}
+
 /* Custom Styles */
 .glassy {
   background: rgba(139, 92, 246, 0.1);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+/* Light mode glassy effect */
+:root:not(.dark) .glassy {
+  background: rgba(122, 66, 255, 0.08);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(122, 66, 255, 0.15);
 }
 
 .animated-question {
@@ -22,6 +51,22 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Popup Animation */
+@keyframes popup {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-popup {
+  animation: popup 0.3s ease-out;
 }
 
 .timer-bar {
@@ -80,30 +125,55 @@
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar {
+/* Custom Scrollbar - Dark Mode */
+.dark ::-webkit-scrollbar {
   width: 8px;
 }
 
-::-webkit-scrollbar-track {
+.dark ::-webkit-scrollbar-track {
   background: #374151;
   border-radius: 4px;
 }
 
-::-webkit-scrollbar-thumb {
+.dark ::-webkit-scrollbar-thumb {
   background: linear-gradient(to bottom, #8B5CF6, #EC4899);
   border-radius: 4px;
 }
 
-::-webkit-scrollbar-thumb:hover {
+.dark ::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(to bottom, #7C3AED, #DB2777);
+}
+
+/* Custom Scrollbar - Light Mode */
+:root:not(.dark) ::-webkit-scrollbar {
+  width: 8px;
+}
+
+:root:not(.dark) ::-webkit-scrollbar-track {
+  background: #F0EBFF;
+  border-radius: 4px;
+}
+
+:root:not(.dark) ::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, #7A42FF, #FF6BB5);
+  border-radius: 4px;
+}
+
+:root:not(.dark) ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, #6933E3, #FF5AA3);
 }
 
 /* Focus States */
 input:focus,
 button:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+  box-shadow: 0 0 0 3px rgba(var(--purple-primary), 0.1);
+}
+
+/* Light mode focus */
+:root:not(.dark) input:focus,
+:root:not(.dark) button:focus {
+  box-shadow: 0 0 0 3px rgba(122, 66, 255, 0.1);
 }
 
 /* Transition Utilities */
@@ -122,6 +192,11 @@ button:focus {
 
 .btn-hover-glow:hover {
   box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+}
+
+/* Light mode button glow */
+:root:not(.dark) .btn-hover-glow:hover {
+  box-shadow: 0 0 20px rgba(122, 66, 255, 0.3);
 }
 
 /* Quiz Specific Animations */
@@ -155,13 +230,26 @@ button:focus {
   }
 }
 
-/* Dark Mode Specific */
-.dark {
-  color-scheme: dark;
+/* Light Mode Specific Styles */
+:root:not(.dark) {
+  color-scheme: light;
 }
 
-/* Custom Gradient Text */
-.gradient-text {
+:root:not(.dark) body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+/* Custom Gradient Text - Light Mode */
+:root:not(.dark) .gradient-text {
+  background: linear-gradient(135deg, #7A42FF, #FF6BB5);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Custom Gradient Text - Dark Mode */
+.dark .gradient-text {
   background: linear-gradient(135deg, #8B5CF6, #EC4899);
   -webkit-background-clip: text;
   background-clip: text;
@@ -176,8 +264,12 @@ button:focus {
 }
 
 @supports not (backdrop-filter: blur(10px)) {
-  .glassy {
+  .dark .glassy {
     background: rgba(139, 92, 246, 0.2);
+  }
+  
+  :root:not(.dark) .glassy {
+    background: rgba(122, 66, 255, 0.15);
   }
 }
 
@@ -187,9 +279,232 @@ button:focus {
   will-change: transform;
 }
 
+/* Light Mode Specific Components */
+:root:not(.dark) .bg-primary {
+  background-color: var(--bg-primary);
+}
+
+:root:not(.dark) .bg-secondary {
+  background-color: var(--bg-secondary);
+}
+
+:root:not(.dark) .text-primary {
+  color: var(--text-primary);
+}
+
+:root:not(.dark) .text-secondary {
+  color: var(--text-secondary);
+}
+
+:root:not(.dark) .border-custom {
+  border-color: var(--border-color);
+}
+
+/* Light Mode Gradient Backgrounds */
+:root:not(.dark) .gradient-bg {
+  background: linear-gradient(135deg, #A77BFF 0%, #FF77C8 100%);
+}
+
+/* Light Mode Card Styles */
+:root:not(.dark) .card-light {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 6px rgba(122, 66, 255, 0.1);
+}
+
+/* Light Mode Button Styles */
+:root:not(.dark) .btn-primary {
+  background: linear-gradient(135deg, var(--purple-primary), var(--pink-accent));
+  color: white;
+}
+
+:root:not(.dark) .btn-primary:hover {
+  background: linear-gradient(135deg, #6933E3, #FF5AA3);
+}
+
+:root:not(.dark) .btn-secondary {
+  border: 2px solid var(--purple-primary);
+  color: var(--purple-primary);
+  background: transparent;
+}
+
+:root:not(.dark) .btn-secondary:hover {
+  background: var(--purple-primary);
+  color: white;
+}
+
+/* Light Mode Form Elements */
+:root:not(.dark) .form-input {
+  background: white;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+:root:not(.dark) .form-input:focus {
+  border-color: var(--purple-primary);
+  box-shadow: 0 0 0 3px rgba(122, 66, 255, 0.1);
+}
+
+:root:not(.dark) .form-input::placeholder {
+  color: var(--text-secondary);
+}
+
+/* Light Mode Navigation */
+:root:not(.dark) .nav-link {
+  color: var(--text-secondary);
+}
+
+:root:not(.dark) .nav-link:hover,
+:root:not(.dark) .nav-link.active {
+  color: var(--purple-primary);
+}
+
+/* Light Mode Quiz Elements */
+:root:not(.dark) .quiz-option {
+  background: white;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+:root:not(.dark) .quiz-option:hover {
+  background: linear-gradient(135deg, rgba(122, 66, 255, 0.1), rgba(255, 107, 181, 0.1));
+  border-color: var(--purple-primary);
+}
+
+:root:not(.dark) .quiz-option.correct {
+  background: #E6FFFA;
+  border-color: #38B2AC;
+  color: #234E52;
+}
+
+:root:not(.dark) .quiz-option.incorrect {
+  background: #FED7D7;
+  border-color: #E53E3E;
+  color: #742A2A;
+}
+
+/* Light Mode Popup Styles */
+:root:not(.dark) .popup {
+  background: white;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 10px 25px rgba(122, 66, 255, 0.15);
+}
+
+:root:not(.dark) .popup-success {
+  background: #F0FFF4;
+  border-color: #48BB78;
+  color: #276749;
+}
+
+:root:not(.dark) .popup-warning {
+  background: #FFFBEB;
+  border-color: #ED8936;
+  color: #744210;
+}
+
+:root:not(.dark) .popup-error {
+  background: #FED7D7;
+  border-color: #E53E3E;
+  color: #742A2A;
+}
+
+/* Light Mode Leaderboard */
+:root:not(.dark) .leaderboard-item {
+  background: white;
+  border: 1px solid var(--border-color);
+}
+
+:root:not(.dark) .leaderboard-item:hover {
+  background: rgba(122, 66, 255, 0.05);
+}
+
+/* Light Mode Stats */
+:root:not(.dark) .stat-card {
+  background: white;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 4px rgba(122, 66, 255, 0.1);
+}
+
+/* Light Mode Chat */
+:root:not(.dark) .chat-container {
+  background: rgba(240, 235, 255, 0.8);
+  border: 1px solid var(--border-color);
+}
+
+:root:not(.dark) .chat-message {
+  color: var(--text-secondary);
+}
+
+:root:not(.dark) .chat-input {
+  background: white;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+/* Light Mode Profile */
+:root:not(.dark) .profile-card {
+  background: white;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 6px rgba(122, 66, 255, 0.1);
+}
+
+:root:not(.dark) .profile-stat {
+  background: rgba(122, 66, 255, 0.05);
+}
+
+/* Animation Adjustments for Light Mode */
+:root:not(.dark) .animate-gradient {
+  background: linear-gradient(-45deg, #A77BFF, #FF77C8, #7A42FF, #FF6BB5);
+  background-size: 400% 400%;
+  animation: gradientShift 8s ease infinite;
+}
+
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
 /* Print Styles */
 @media print {
   .no-print {
     display: none !important;
+  }
+  
+  :root:not(.dark) {
+    --bg-primary: white;
+    --bg-secondary: white;
+    --text-primary: black;
+    --text-secondary: #666;
+  }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  :root:not(.dark) {
+    --purple-primary: #5A1A8B;
+    --pink-accent: #D6336C;
+    --text-primary: #000000;
+    --text-secondary: #333333;
+    --border-color: #999999;
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .animated-question,
+  .animate-pulse,
+  .animate-spin,
+  .animate-popup,
+  .transition-all,
+  .transition-colors {
+    animation: none;
+    transition: none;
   }
 }

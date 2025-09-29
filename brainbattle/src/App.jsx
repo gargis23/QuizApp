@@ -9,10 +9,11 @@ import Leaderboard from './pages/Leaderboard';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Quiz from './pages/Quiz';
+import Profile from './pages/Profile';
 import './App.css';
 
 const AppContent = () => {
-  const { currentPage, gameState } = useApp();
+  const { currentPage, gameState, darkMode } = useApp();
 
   const renderPage = () => {
     if (gameState.inGame && currentPage === 'quiz') {
@@ -25,12 +26,17 @@ const AppContent = () => {
       case 'login': return <Login />;
       case 'register': return <Register />;
       case 'quiz': return <Quiz />;
+      case 'profile': return <Profile />;
       default: return <Home />;
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className={`min-h-screen transition-colors ${
+      darkMode 
+        ? 'bg-gray-900 text-white' 
+        : 'bg-gray-50 text-gray-800'
+    }`}>
       <Navbar />
       <main>
         {renderPage()}
