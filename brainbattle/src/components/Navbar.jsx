@@ -1,8 +1,16 @@
-import React from 'react';
-import { useApp } from '../context/useApp.jsx';
+import React, { useState } from 'react';
+import { useApp } from '../context/useApp';
 
 const Navbar = () => {
   const { darkMode, toggleTheme, isLoggedIn, logout, currentPage, setCurrentPage, user } = useApp();
+  const [showThemeDropdown, setShowThemeDropdown] = useState(false);
+
+  const handleThemeSelect = (theme) => {
+    if ((theme === 'dark' && !darkMode) || (theme === 'light' && darkMode)) {
+      toggleTheme();
+    }
+    setShowThemeDropdown(false);
+  };
 
   return (
     <nav className={`backdrop-blur-md border-b sticky top-0 z-50 transition-colors ${
@@ -37,7 +45,7 @@ const Navbar = () => {
               className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                 currentPage === 'home' 
                   ? (darkMode ? 'text-purple-400' : 'text-purple-600') 
-                  : (darkMode ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-800')
+                  : (darkMode ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900')
               }`}
             >
               Home
@@ -47,7 +55,7 @@ const Navbar = () => {
               className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                 currentPage === 'about' 
                   ? (darkMode ? 'text-purple-400' : 'text-purple-600') 
-                  : (darkMode ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-800')
+                  : (darkMode ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900')
               }`}
             >
               About
@@ -57,7 +65,7 @@ const Navbar = () => {
               className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                 currentPage === 'leaderboard' 
                   ? (darkMode ? 'text-purple-400' : 'text-purple-600') 
-                  : (darkMode ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-800')
+                  : (darkMode ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900')
               }`}
             >
               Leaderboard
@@ -87,7 +95,7 @@ const Navbar = () => {
                     </div>
                   )}
                   <span className={`text-sm ${
-                    darkMode ? 'text-gray-300' : 'text-gray-600'
+                    darkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}>
                     Hi, {user?.name || 'User'}
                   </span>
@@ -116,30 +124,79 @@ const Navbar = () => {
               </button>
             )}
             
-            {/* Theme Toggle Button */}
-            <button 
-              onClick={toggleTheme}
-              className={`p-2 rounded-lg transition-colors ${
-                darkMode 
-                  ? 'bg-gray-700 hover:bg-gray-600' 
-                  : 'bg-purple-100 hover:bg-purple-200'
-              }`}
-            >
-              {darkMode ? (
-                // Sun icon for light mode
-                <svg className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+            {/* Theme Dropdown */}
+            <div className="relative">
+              <button 
+                onClick={() => setShowThemeDropdown(!showThemeDropdown)}
+                className={`p-2 rounded-lg transition-colors flex items-center space-x-1 ${
+                  darkMode 
+                    ? 'bg-gray-700 hover:bg-gray-600' 
+                    : 'bg-purple-100 hover:bg-purple-200'
+                }`}
+              >
+                {darkMode ? (
+                  <svg className="w-5 h-5 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+                  </svg>
+                )}
+                <svg className={`w-4 h-4 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`} fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                 </svg>
-              ) : (
-                // Moon icon for dark mode
-                <svg className="w-5 h-5 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-                </svg>
+              </button>
+
+              {showThemeDropdown && (
+                <div className={`absolute right-0 mt-2 w-48 rounded-lg shadow-lg overflow-hidden z-50 ${
+                  darkMode 
+                    ? 'bg-gray-800 border border-gray-700' 
+                    : 'bg-white border border-purple-200'
+                }`}>
+                  <button
+                    onClick={() => handleThemeSelect('light')}
+                    className={`w-full px-4 py-3 text-left flex items-center space-x-3 transition-colors ${
+                      !darkMode 
+                        ? (darkMode ? 'bg-purple-600/20 text-purple-400' : 'bg-purple-50 text-purple-600')
+                        : (darkMode ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-50 text-gray-700')
+                    }`}
+                  >
+                    <svg className="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+                    </svg>
+                    <span className="font-medium">Light Mode</span>
+                    {!darkMode && <span className="ml-auto text-purple-500">✓</span>}
+                  </button>
+                  
+                  <button
+                    onClick={() => handleThemeSelect('dark')}
+                    className={`w-full px-4 py-3 text-left flex items-center space-x-3 transition-colors ${
+                      darkMode 
+                        ? (darkMode ? 'bg-purple-600/20 text-purple-400' : 'bg-purple-50 text-purple-600')
+                        : (darkMode ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-50 text-gray-700')
+                    }`}
+                  >
+                    <svg className="w-5 h-5 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                    </svg>
+                    <span className="font-medium">Dark Mode</span>
+                    {darkMode && <span className="ml-auto text-purple-500">✓</span>}
+                  </button>
+                </div>
               )}
-            </button>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Backdrop to close dropdown */}
+      {showThemeDropdown && (
+        <div 
+          className="fixed inset-0 z-40" 
+          onClick={() => setShowThemeDropdown(false)}
+        ></div>
+      )}
     </nav>
   );
 };

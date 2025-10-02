@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useApp } from '../context/useApp.jsx';
+import { useApp } from '../context/useApp';
 
 const Register = () => {
-  const { login, setCurrentPage } = useApp();
+  const { login, setCurrentPage, darkMode, signInWithGoogle } = useApp();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -21,7 +21,6 @@ const Register = () => {
   }, []);
 
   useEffect(() => {
-    // Calculate password strength
     const password = formData.password;
     let strength = 0;
     
@@ -112,7 +111,6 @@ const Register = () => {
     
     setIsLoading(true);
     
-    // Simulate API call
     setTimeout(() => {
       login({ 
         name: formData.name.trim(), 
@@ -127,16 +125,23 @@ const Register = () => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
     
-    // Clear error when user starts typing
     if (errors[name]) {
       setErrors({ ...errors, [name]: '' });
     }
   };
 
+  const handleGoogleSignIn = () => {
+    setIsLoading(true);
+    setTimeout(() => {
+      signInWithGoogle();
+      setIsLoading(false);
+    }, 1000);
+  };
+
   const getPasswordStrengthColor = () => {
-    if (passwordStrength < 2) return 'bg-red-500';
-    if (passwordStrength < 4) return 'bg-yellow-500';
-    return 'bg-green-500';
+    if (passwordStrength < 2) return darkMode ? 'bg-red-500' : 'bg-red-400';
+    if (passwordStrength < 4) return darkMode ? 'bg-yellow-500' : 'bg-yellow-400';
+    return darkMode ? 'bg-green-500' : 'bg-green-400';
   };
 
   const getPasswordStrengthText = () => {
@@ -146,21 +151,41 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-pink-900/20 flex items-center justify-center p-4">
-      <div className="glassy rounded-2xl p-8 w-full max-w-md">
+    <div className={`min-h-screen flex items-center justify-center p-4 transition-colors ${
+      darkMode 
+        ? 'bg-gradient-to-br from-gray-900 via-purple-900/20 to-pink-900/20' 
+        : 'bg-gradient-to-br from-purple-50 via-pink-50/30 to-purple-50'
+    }`}>
+      <div className={`rounded-2xl p-8 w-full max-w-md ${
+        darkMode 
+          ? 'glassy' 
+          : 'bg-white/90 border border-purple-200 shadow-xl'
+      }`}>
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
+            darkMode 
+              ? 'bg-gradient-to-r from-purple-500 to-pink-500' 
+              : 'bg-gradient-to-r from-purple-600 to-pink-600'
+          }`}>
             <span className="text-white font-bold text-2xl">BB</span>
           </div>
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">
+          <h2 className={`text-3xl font-bold mb-2 ${
+            darkMode 
+              ? 'bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent'
+              : 'bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent'
+          }`}>
             Join BrainBattle
           </h2>
-          <p className="text-gray-400">Create your account and start battling</p>
+          <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
+            Create your account and start battling
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-gray-300 text-sm font-medium mb-2">
+            <label className={`block text-sm font-medium mb-2 ${
+              darkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>
               Full Name
             </label>
             <input
@@ -168,8 +193,12 @@ const Register = () => {
               name="name"
               value={formData.name}
               onChange={handleInputChange}
-              className={`w-full p-3 bg-gray-700 border rounded-lg text-white focus:outline-none transition-colors ${
-                errors.name ? 'border-red-500 focus:border-red-400' : 'border-gray-600 focus:border-purple-500'
+              className={`w-full p-3 border rounded-lg focus:outline-none transition-colors ${
+                errors.name 
+                  ? 'border-red-500 focus:border-red-400' 
+                  : (darkMode 
+                    ? 'bg-gray-700 border-gray-600 text-white focus:border-purple-500'
+                    : 'bg-white border-purple-200 text-gray-800 focus:border-purple-400')
               }`}
               placeholder="Enter your full name"
               disabled={isLoading}
@@ -178,7 +207,9 @@ const Register = () => {
           </div>
 
           <div>
-            <label className="block text-gray-300 text-sm font-medium mb-2">
+            <label className={`block text-sm font-medium mb-2 ${
+              darkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>
               Email Address
             </label>
             <input
@@ -186,8 +217,12 @@ const Register = () => {
               name="email"
               value={formData.email}
               onChange={handleInputChange}
-              className={`w-full p-3 bg-gray-700 border rounded-lg text-white focus:outline-none transition-colors ${
-                errors.email ? 'border-red-500 focus:border-red-400' : 'border-gray-600 focus:border-purple-500'
+              className={`w-full p-3 border rounded-lg focus:outline-none transition-colors ${
+                errors.email 
+                  ? 'border-red-500 focus:border-red-400' 
+                  : (darkMode 
+                    ? 'bg-gray-700 border-gray-600 text-white focus:border-purple-500'
+                    : 'bg-white border-purple-200 text-gray-800 focus:border-purple-400')
               }`}
               placeholder="Enter your email"
               disabled={isLoading}
@@ -196,7 +231,9 @@ const Register = () => {
           </div>
 
           <div>
-            <label className="block text-gray-300 text-sm font-medium mb-2">
+            <label className={`block text-sm font-medium mb-2 ${
+              darkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>
               Password
             </label>
             <input
@@ -204,8 +241,12 @@ const Register = () => {
               name="password"
               value={formData.password}
               onChange={handleInputChange}
-              className={`w-full p-3 bg-gray-700 border rounded-lg text-white focus:outline-none transition-colors ${
-                errors.password ? 'border-red-500 focus:border-red-400' : 'border-gray-600 focus:border-purple-500'
+              className={`w-full p-3 border rounded-lg focus:outline-none transition-colors ${
+                errors.password 
+                  ? 'border-red-500 focus:border-red-400' 
+                  : (darkMode 
+                    ? 'bg-gray-700 border-gray-600 text-white focus:border-purple-500'
+                    : 'bg-white border-purple-200 text-gray-800 focus:border-purple-400')
               }`}
               placeholder="Create a password"
               disabled={isLoading}
@@ -213,7 +254,9 @@ const Register = () => {
             {formData.password && (
               <div className="mt-2">
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-400">Password strength:</span>
+                  <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
+                    Password strength:
+                  </span>
                   <span className={`font-semibold ${
                     passwordStrength < 2 ? 'text-red-400' : 
                     passwordStrength < 4 ? 'text-yellow-400' : 'text-green-400'
@@ -221,7 +264,9 @@ const Register = () => {
                     {getPasswordStrengthText()}
                   </span>
                 </div>
-                <div className="w-full bg-gray-600 rounded-full h-2 mt-1">
+                <div className={`w-full rounded-full h-2 mt-1 ${
+                  darkMode ? 'bg-gray-600' : 'bg-gray-200'
+                }`}>
                   <div 
                     className={`h-2 rounded-full transition-all duration-300 ${getPasswordStrengthColor()}`}
                     style={{ width: `${(passwordStrength / 5) * 100}%` }}
@@ -233,7 +278,9 @@ const Register = () => {
           </div>
 
           <div>
-            <label className="block text-gray-300 text-sm font-medium mb-2">
+            <label className={`block text-sm font-medium mb-2 ${
+              darkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>
               Confirm Password
             </label>
             <input
@@ -241,8 +288,12 @@ const Register = () => {
               name="confirmPassword"
               value={formData.confirmPassword}
               onChange={handleInputChange}
-              className={`w-full p-3 bg-gray-700 border rounded-lg text-white focus:outline-none transition-colors ${
-                errors.confirmPassword ? 'border-red-500 focus:border-red-400' : 'border-gray-600 focus:border-purple-500'
+              className={`w-full p-3 border rounded-lg focus:outline-none transition-colors ${
+                errors.confirmPassword 
+                  ? 'border-red-500 focus:border-red-400' 
+                  : (darkMode 
+                    ? 'bg-gray-700 border-gray-600 text-white focus:border-purple-500'
+                    : 'bg-white border-purple-200 text-gray-800 focus:border-purple-400')
               }`}
               placeholder="Confirm your password"
               disabled={isLoading}
@@ -251,12 +302,20 @@ const Register = () => {
           </div>
 
           <div>
-            <label className="block text-gray-300 text-sm font-medium mb-2">
+            <label className={`block text-sm font-medium mb-2 ${
+              darkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>
               Security Verification
             </label>
             <div className="flex items-center space-x-3 mb-2">
-              <div className="glassy p-3 rounded-lg flex-1">
-                <span className="text-purple-400 font-mono text-lg">{captchaQuestion}</span>
+              <div className={`p-3 rounded-lg flex-1 ${
+                darkMode ? 'glassy' : 'bg-purple-50 border border-purple-200'
+              }`}>
+                <span className={`font-mono text-lg ${
+                  darkMode ? 'text-purple-400' : 'text-purple-600'
+                }`}>
+                  {captchaQuestion}
+                </span>
               </div>
               <button
                 type="button"
@@ -264,7 +323,11 @@ const Register = () => {
                   generateCaptcha();
                   setFormData({...formData, captcha: ''});
                 }}
-                className="p-3 bg-gray-600 hover:bg-gray-500 rounded-lg transition-colors"
+                className={`p-3 rounded-lg transition-colors ${
+                  darkMode 
+                    ? 'bg-gray-600 hover:bg-gray-500'
+                    : 'bg-purple-100 hover:bg-purple-200'
+                }`}
                 disabled={isLoading}
               >
                 🔄
@@ -275,8 +338,12 @@ const Register = () => {
               name="captcha"
               value={formData.captcha}
               onChange={handleInputChange}
-              className={`w-full p-3 bg-gray-700 border rounded-lg text-white focus:outline-none transition-colors ${
-                errors.captcha ? 'border-red-500 focus:border-red-400' : 'border-gray-600 focus:border-purple-500'
+              className={`w-full p-3 border rounded-lg focus:outline-none transition-colors ${
+                errors.captcha 
+                  ? 'border-red-500 focus:border-red-400' 
+                  : (darkMode 
+                    ? 'bg-gray-700 border-gray-600 text-white focus:border-purple-500'
+                    : 'bg-white border-purple-200 text-gray-800 focus:border-purple-400')
               }`}
               placeholder="Enter the answer"
               disabled={isLoading}
@@ -288,16 +355,30 @@ const Register = () => {
             <input 
               type="checkbox" 
               id="terms"
-              className="rounded border-gray-600 text-purple-600 focus:ring-purple-500 mt-1" 
+              className={`rounded mt-1 ${
+                darkMode 
+                  ? 'border-gray-600 text-purple-600 focus:ring-purple-500'
+                  : 'border-purple-300 text-purple-600 focus:ring-purple-500'
+              }`}
               required
             />
-            <label htmlFor="terms" className="ml-2 text-sm text-gray-400">
+            <label htmlFor="terms" className={`ml-2 text-sm ${
+              darkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>
               I agree to the{' '}
-              <button type="button" className="text-purple-400 hover:text-purple-300 transition-colors">
+              <button type="button" className={`transition-colors ${
+                darkMode 
+                  ? 'text-purple-400 hover:text-purple-300'
+                  : 'text-purple-600 hover:text-purple-700'
+              }`}>
                 Terms of Service
               </button>
               {' '}and{' '}
-              <button type="button" className="text-purple-400 hover:text-purple-300 transition-colors">
+              <button type="button" className={`transition-colors ${
+                darkMode 
+                  ? 'text-purple-400 hover:text-purple-300'
+                  : 'text-purple-600 hover:text-purple-700'
+              }`}>
                 Privacy Policy
               </button>
             </label>
@@ -306,7 +387,7 @@ const Register = () => {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-600 disabled:to-gray-600 py-3 rounded-lg font-semibold text-lg transition-all transform hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed"
+            className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-600 disabled:to-gray-600 py-3 rounded-lg font-semibold text-lg text-white transition-all transform hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed"
           >
             {isLoading ? (
               <div className="flex items-center justify-center">
@@ -322,39 +403,54 @@ const Register = () => {
         <div className="mt-6">
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-600"></div>
+              <div className={`w-full border-t ${
+                darkMode ? 'border-gray-600' : 'border-purple-200'
+              }`}></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-gray-800 text-gray-400">Or continue with</span>
+              <span className={`px-2 ${
+                darkMode ? 'bg-gray-800 text-gray-400' : 'bg-white text-gray-500'
+              }`}>
+                Or continue with
+              </span>
             </div>
           </div>
 
-          <div className="mt-6 grid grid-cols-2 gap-3">
-            <button className="w-full inline-flex justify-center py-2 px-4 border border-gray-600 rounded-md shadow-sm bg-gray-700 text-sm font-medium text-gray-300 hover:bg-gray-600 transition-colors">
-              <svg className="h-5 w-5" viewBox="0 0 24 24">
-                <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-              </svg>
-              <span className="ml-2">Google</span>
-            </button>
-
-            <button className="w-full inline-flex justify-center py-2 px-4 border border-gray-600 rounded-md shadow-sm bg-gray-700 text-sm font-medium text-gray-300 hover:bg-gray-600 transition-colors">
-              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z"/>
-              </svg>
-              <span className="ml-2">Twitter</span>
+          <div className="mt-6">
+            <button 
+              onClick={handleGoogleSignIn}
+              disabled={isLoading}
+              className={`w-full inline-flex justify-center items-center py-3 px-4 border rounded-lg shadow-sm font-medium transition-all transform hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed ${
+                darkMode 
+                  ? 'border-gray-600 bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  : 'border-purple-200 bg-white text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              {isLoading ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current mr-2"></div>
+              ) : (
+                <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24">
+                  <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                  <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                  <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                  <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+              )}
+              Continue with Google
             </button>
           </div>
         </div>
 
         <div className="text-center mt-6">
-          <p className="text-gray-400">
+          <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
             Already have an account?{' '}
             <button 
               onClick={() => setCurrentPage('login')}
-              className="text-purple-400 hover:text-purple-300 font-medium transition-colors"
+              className={`font-medium transition-colors ${
+                darkMode 
+                  ? 'text-purple-400 hover:text-purple-300'
+                  : 'text-purple-600 hover:text-purple-700'
+              }`}
             >
               Go to Login
             </button>

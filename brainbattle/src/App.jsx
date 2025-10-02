@@ -1,6 +1,6 @@
 import React from 'react';
+import { useApp } from './context/useApp';
 import { AppProvider } from './context/AppContext';
-import { useApp } from './context/useApp.jsx';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Home from './pages/Home';
@@ -10,6 +10,8 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Quiz from './pages/Quiz';
 import Profile from './pages/Profile';
+import RoomLobby from './pages/RoomLobby';
+import WaitingPage from './pages/WaitingPage';
 import './App.css';
 
 const AppContent = () => {
@@ -20,6 +22,10 @@ const AppContent = () => {
       return <Quiz />;
     }
 
+    if (gameState.waitingForHost && currentPage === 'waiting') {
+      return <WaitingPage />;
+    }
+
     switch(currentPage) {
       case 'about': return <About />;
       case 'leaderboard': return <Leaderboard />;
@@ -27,6 +33,8 @@ const AppContent = () => {
       case 'register': return <Register />;
       case 'quiz': return <Quiz />;
       case 'profile': return <Profile />;
+      case 'lobby': return <RoomLobby />;
+      case 'waiting': return <WaitingPage />;
       default: return <Home />;
     }
   };

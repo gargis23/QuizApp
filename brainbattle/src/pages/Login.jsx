@@ -33,7 +33,6 @@ const Login = () => {
     
     setIsLoading(true);
     
-    // Simulate API call
     setTimeout(() => {
       login({ 
         name: formData.email.split('@')[0], 
@@ -48,7 +47,6 @@ const Login = () => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
     
-    // Clear error when user starts typing
     if (errors[name]) {
       setErrors({ ...errors, [name]: '' });
     }
@@ -94,6 +92,30 @@ const Login = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label className={`block text-sm font-medium mb-2 ${
+              darkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>
+              Email Address
+            </label>
+            <input
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleInputChange}
+              className={`w-full p-3 border rounded-lg focus:outline-none transition-colors ${
+                errors.email 
+                  ? 'border-red-500 focus:border-red-400' 
+                  : (darkMode 
+                    ? 'bg-gray-700 border-gray-600 text-white focus:border-purple-500'
+                    : 'bg-white border-purple-200 text-gray-800 focus:border-purple-400')
+              }`}
+              placeholder="Enter your email"
+              disabled={isLoading}
+            />
+            {errors.email && <p className="text-red-400 text-sm mt-1">{errors.email}</p>}
+          </div>
+
           <div>
             <label className={`block text-sm font-medium mb-2 ${
               darkMode ? 'text-gray-300' : 'text-gray-700'
