@@ -1,8 +1,10 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/useApp';
 
 const About = () => {
-  const { darkMode, isLoggedIn, setCurrentPage } = useApp();
+  const navigate = useNavigate();
+  const { darkMode, isLoggedIn } = useApp();
   
   const features = [
     {
@@ -84,14 +86,14 @@ const About = () => {
 
   const handleStartPlaying = () => {
     if (isLoggedIn) {
-      setCurrentPage('quiz');
+      navigate('/quiz');
     } else {
-      setCurrentPage('login');
+      navigate('/login');
     }
   };
 
   const handleViewLeaderboard = () => {
-    setCurrentPage('leaderboard');
+    navigate('/leaderboard');
   };
 
   return (

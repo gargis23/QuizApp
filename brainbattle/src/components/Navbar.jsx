@@ -1,9 +1,14 @@
 import React, { useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/useApp';
 
 const Navbar = () => {
-  const { darkMode, toggleTheme, isLoggedIn, logout, currentPage, setCurrentPage, user } = useApp();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { darkMode, toggleTheme, logout, user } = useApp();
   const [showThemeDropdown, setShowThemeDropdown] = useState(false);
+
+  const currentPath = location.pathname;
 
   const handleThemeSelect = (theme) => {
     if ((theme === 'dark' && !darkMode) || (theme === 'light' && darkMode)) {
@@ -21,72 +26,72 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
-            <div className="logo-hover cursor-pointer flex items-center space-x-2" onClick={() => setCurrentPage('home')}>
+            <Link to="/" className="logo-hover cursor-pointer flex items-center space-x-2">
               <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                darkMode 
-                  ? 'bg-gradient-to-r from-purple-500 to-pink-500' 
+                darkMode
+                  ? 'bg-gradient-to-r from-purple-500 to-pink-500'
                   : 'bg-gradient-to-r from-purple-600 to-pink-600'
               }`}>
                 <span className="text-white font-bold text-xl">BB</span>
               </div>
               <span className={`text-2xl font-bold transition-colors ${
-                darkMode 
+                darkMode
                   ? 'bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent'
                   : 'bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent'
               }`}>
                 BrainBattle
               </span>
-            </div>
+            </Link>
           </div>
-          
+
           <div className="flex items-center space-x-6">
-            <button 
-              onClick={() => setCurrentPage('home')}
+            <Link
+              to="/"
               className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                currentPage === 'home' 
-                  ? (darkMode ? 'text-purple-400' : 'text-purple-600') 
+                currentPath === '/'
+                  ? (darkMode ? 'text-purple-400' : 'text-purple-600')
                   : (darkMode ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900')
               }`}
             >
               Home
-            </button>
-            <button 
-              onClick={() => setCurrentPage('about')}
+            </Link>
+            <Link
+              to="/about"
               className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                currentPage === 'about' 
-                  ? (darkMode ? 'text-purple-400' : 'text-purple-600') 
+                currentPath === '/about'
+                  ? (darkMode ? 'text-purple-400' : 'text-purple-600')
                   : (darkMode ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900')
               }`}
             >
               About
-            </button>
-            <button 
-              onClick={() => setCurrentPage('leaderboard')}
+            </Link>
+            <Link
+              to="/leaderboard"
               className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                currentPage === 'leaderboard' 
-                  ? (darkMode ? 'text-purple-400' : 'text-purple-600') 
+                currentPath === '/leaderboard'
+                  ? (darkMode ? 'text-purple-400' : 'text-purple-600')
                   : (darkMode ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900')
               }`}
             >
               Leaderboard
-            </button>
+            </Link>
             
-            {isLoggedIn ? (
+            {user ? (
               <div className="flex items-center space-x-4">
-                <button 
-                  onClick={() => setCurrentPage('profile')}
+                <Link
+                  to="/profile"
                   className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
                 >
                   {user?.picture ? (
-                    <img 
-                      src={user.picture} 
+                    <img
+                      src={user.picture}
                       alt={user.name}
                       className="w-8 h-8 rounded-full object-cover"
                     />
                   ) : (
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      darkMode 
-                        ? 'bg-gradient-to-r from-purple-500 to-pink-500' 
+                      darkMode
+                        ? 'bg-gradient-to-r from-purple-500 to-pink-500'
                         : 'bg-gradient-to-r from-purple-600 to-pink-600'
                     }`}>
                       <span className="text-white text-sm font-bold">
@@ -99,12 +104,15 @@ const Navbar = () => {
                   }`}>
                     Hi, {user?.name || 'User'}
                   </span>
-                </button>
-                <button 
-                  onClick={logout}
+                </Link>
+                <button
+                  onClick={() => {
+                    logout();
+                    navigate('/');
+                  }}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    darkMode 
-                      ? 'bg-red-600 hover:bg-red-700 text-white' 
+                    darkMode
+                      ? 'bg-red-600 hover:bg-red-700 text-white'
                       : 'bg-red-500 hover:bg-red-600 text-white'
                   }`}
                 >
@@ -112,16 +120,16 @@ const Navbar = () => {
                 </button>
               </div>
             ) : (
-              <button 
-                onClick={() => setCurrentPage('login')}
+              <Link
+                to="/login"
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  darkMode 
-                    ? 'bg-purple-600 hover:bg-purple-700 text-white' 
+                  darkMode
+                    ? 'bg-purple-600 hover:bg-purple-700 text-white'
                     : 'bg-purple-600 hover:bg-purple-700 text-white'
                 }`}
               >
                 Login
-              </button>
+              </Link>
             )}
             
             {/* Theme Dropdown */}

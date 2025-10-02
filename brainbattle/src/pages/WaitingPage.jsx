@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/useApp';
 
 const WaitingPage = () => {
-  const { gameState, setGameState, darkMode, user, setCurrentPage } = useApp();
+  const { gameState, setGameState, darkMode, user } = useApp();
+  const navigate = useNavigate();
   const [chatMessage, setChatMessage] = useState('');
   const [chatMessages, setChatMessages] = useState([
     { sender: 'System', message: 'Waiting for host to start the game...', time: new Date() }
@@ -28,7 +30,7 @@ const WaitingPage = () => {
       
       setTimeout(() => {
         setGameState(prev => ({ ...prev, waitingForHost: false }));
-        setCurrentPage('quiz');
+  navigate('/quiz');
       }, 2000);
     }, 10000);
 

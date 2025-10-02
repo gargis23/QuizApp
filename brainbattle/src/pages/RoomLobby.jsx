@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/useApp';
 
 const RoomLobby = () => {
-  const { gameState, setGameState, darkMode, user, setCurrentPage } = useApp();
+  const { gameState, setGameState, darkMode, user } = useApp();
+  const navigate = useNavigate();
   const [players, setPlayers] = useState([
     { id: 1, name: user?.name || 'You', isHost: true, email: user?.email }
   ]);
@@ -62,7 +64,7 @@ const RoomLobby = () => {
 
   const handleLeaveRoom = () => {
     setGameState(prev => ({ ...prev, roomCode: null }));
-    setCurrentPage('home');
+  navigate('/');
   };
 
   const handleSendMessage = (e) => {
@@ -88,7 +90,7 @@ const RoomLobby = () => {
       selectedCategory,
       waitingForHost: true
     }));
-    setCurrentPage('waiting');
+  navigate('/waiting');
   };
 
   return (

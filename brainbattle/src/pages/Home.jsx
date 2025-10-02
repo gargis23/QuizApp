@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/useApp';
 
 const Home = () => {
-  const { isLoggedIn, setCurrentPage, gameState, setGameState, darkMode } = useApp();
+  const { user, gameState, setGameState, darkMode } = useApp();
+  const navigate = useNavigate();
   const [roomCode, setRoomCode] = useState('');
   const [showCreateRoom, setShowCreateRoom] = useState(false);
 
@@ -11,8 +13,8 @@ const Home = () => {
   };
 
   const createRoom = () => {
-    if (!isLoggedIn) {
-      setCurrentPage('login');
+  if (!user) {
+  navigate('/login');
       return;
     }
     const code = generateRoomCode();
@@ -21,20 +23,20 @@ const Home = () => {
   };
 
   const joinRoom = () => {
-    if (!isLoggedIn) {
-      setCurrentPage('login');
+  if (!user) {
+  navigate('/login');
       return;
     }
     if (roomCode.length === 6) {
       setGameState(prev => ({ ...prev, roomCode: roomCode.toUpperCase() }));
-      setCurrentPage('lobby');
+  navigate('/lobby');
     } else {
       alert('Please enter a valid 6-character room code');
     }
   };
 
   const goToLobby = () => {
-    setCurrentPage('lobby');
+    navigate('/lobby');
   };
 
   return (
@@ -71,7 +73,7 @@ const Home = () => {
             </p>
           </div>
 
-          {!isLoggedIn ? (
+          {!user ? (
             <div className="space-y-4">
               <p className={`mb-6 ${
                 darkMode ? 'text-gray-300' : 'text-gray-700'
@@ -79,14 +81,14 @@ const Home = () => {
                 Join the battle to test your knowledge!
               </p>
               <div className="flex gap-4 justify-center">
-                <button 
-                  onClick={() => setCurrentPage('register')}
+          <button 
+            onClick={() => navigate('/register')}
                   className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 px-8 py-3 rounded-lg font-semibold text-lg text-white transition-all transform hover:scale-105 shadow-lg"
                 >
                   Sign Up Now
                 </button>
                 <button 
-                  onClick={() => setCurrentPage('login')}
+                  onClick={() => navigate('/login')}
                   className={`px-8 py-3 rounded-lg font-semibold text-lg transition-all transform hover:scale-105 ${
                     darkMode 
                       ? 'border-2 border-purple-500 hover:bg-purple-500 text-purple-400 hover:text-white'
@@ -186,7 +188,7 @@ const Home = () => {
 
               <div className="mt-8">
                 <button 
-                  onClick={() => setCurrentPage('leaderboard')}
+                  onClick={() => navigate('/leaderboard')}
                   className={`px-6 py-2 rounded-lg font-medium transition-all ${
                     darkMode 
                       ? 'border-2 border-purple-500 hover:bg-purple-500 text-purple-400 hover:text-white'

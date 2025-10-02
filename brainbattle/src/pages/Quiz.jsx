@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/useApp';
 import { quizQuestions } from '../data/quizQuestions';
 
 const Quiz = () => {
-  const { gameState, setGameState, setCurrentPage, darkMode, showPopup, addUserResult } = useApp();
+  const { gameState, setGameState, darkMode, showPopup, addUserResult } = useApp();
+  const navigate = useNavigate();
   const [currentQuestionData, setCurrentQuestionData] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [showAnswer, setShowAnswer] = useState(false);
@@ -143,7 +145,7 @@ const Quiz = () => {
       correctAnswers: 0
     }));
     setSelectedCategory(null);
-    setCurrentPage('leaderboard');
+  navigate('/leaderboard');
   };
 
   const showFinalScorePopup = (result) => {
@@ -186,7 +188,7 @@ const Quiz = () => {
     
     // Handle close popup event
     window.addEventListener('closeScorePopup', () => {
-      setCurrentPage('leaderboard');
+  navigate('/leaderboard');
     }, { once: true });
   };
 
@@ -284,7 +286,7 @@ const Quiz = () => {
 
           <div className="text-center mt-12">
             <button 
-              onClick={() => setCurrentPage('home')}
+              onClick={() => navigate('/')}
               className={`px-6 py-2 rounded-lg font-medium transition-all ${
                 darkMode 
                   ? 'border-2 border-gray-500 hover:border-purple-500 hover:bg-purple-500 text-gray-300 hover:text-white'

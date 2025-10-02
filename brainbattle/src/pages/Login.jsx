@@ -1,11 +1,17 @@
 import React, { useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+// import { useGoogleLogin } from '@react-oauth/google';
 import { useApp } from '../context/useApp';
+import { authAPI } from '../api/api';
 
 const Login = () => {
-  const { login, setCurrentPage, darkMode, signInWithGoogle } = useApp();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { setUser, darkMode } = useApp();
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
+  const [apiError, setApiError] = useState(searchParams.get('error') || '');
 
   const validateForm = () => {
     const newErrors = {};
@@ -28,19 +34,33 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
-    
+
     setIsLoading(true);
-    
-    setTimeout(() => {
-      login({ 
-        name: formData.email.split('@')[0], 
-        email: formData.email 
+    setApiError('');
+
+    try {
+      const response = await authAPI.login({
+        email: formData.email,
+        password: formData.password
       });
-      setCurrentPage('home');
+
+      if (response.data.success) {
+        // Store token and user data
+        localStorage.setItem('token', response.data.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.data.user));
+        setUser(response.data.data.user);
+
+        // Redirect to home
+        navigate('/');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      setApiError(error.response?.data?.message || 'Login failed. Please try again.');
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   const handleInputChange = (e) => {
@@ -52,13 +72,43 @@ const Login = () => {
     }
   };
 
-  const handleGoogleSignIn = () => {
-    setIsLoading(true);
-    setTimeout(() => {
-      signInWithGoogle();
-      setIsLoading(false);
-    }, 1000);
-  };
+  /* 
+  // const handleGoogleSignIn = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      setIsLoading(true);
+      try {
+        // Get user info from Google
+        const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+        });
+        const userInfo = await userInfoResponse.json();
+
+        // Send to backend
+        const response = await authAPI.googleAuth({
+          name: userInfo.name,
+          email: userInfo.email,
+          picture: userInfo.picture,
+          googleId: userInfo.sub
+        });
+
+        if (response.data.success) {
+          localStorage.setItem('token', response.data.data.token);
+          localStorage.setItem('user', JSON.stringify(response.data.data.user));
+          setUser(response.data.data.user);
+          navigate('/');
+        }
+      } catch (error) {
+        console.error('Google sign-in error:', error);
+        setApiError(error.response?.data?.message || 'Google sign-in failed');
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    onError: () => {
+      setApiError('Google sign-in failed');
+    }
+  });
+  */
 
   return (
     <div className={`min-h-screen flex items-center justify-center p-4 transition-colors ${
@@ -90,6 +140,12 @@ const Login = () => {
             Sign in to continue your brain battle
           </p>
         </div>
+
+        {apiError && (
+          <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/50">
+            <p className="text-red-400 text-sm">{apiError}</p>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
@@ -201,6 +257,7 @@ const Login = () => {
           </div>
 
           <div className="mt-6">
+            {/* Google OAuth button commented out
             <button 
               onClick={handleGoogleSignIn}
               disabled={isLoading}
@@ -222,16 +279,17 @@ const Login = () => {
               )}
               Continue with Google
             </button>
+            */}
           </div>
         </div>
 
         <div className="text-center mt-6">
           <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
             Don't have an account?{' '}
-            <button 
-              onClick={() => setCurrentPage('register')}
+            <button
+              onClick={() => navigate('/register')}
               className={`font-medium transition-colors ${
-                darkMode 
+                darkMode
                   ? 'text-purple-400 hover:text-purple-300'
                   : 'text-purple-600 hover:text-purple-700'
               }`}

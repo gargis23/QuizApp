@@ -5,7 +5,6 @@ const AppContext = createContext();
 export const AppProvider = ({ children }) => {
   const [darkMode, setDarkMode] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [currentPage, setCurrentPage] = useState('home');
   const [user, setUser] = useState(null);
   const [gameState, setGameState] = useState({
     inGame: false,
@@ -59,7 +58,6 @@ export const AppProvider = ({ children }) => {
     setIsLoggedIn(false);
     setUser(null);
     localStorage.removeItem('user');
-    setCurrentPage('home');
     setGameState(prev => ({
       ...prev,
       inGame: false,
@@ -99,7 +97,7 @@ export const AppProvider = ({ children }) => {
     };
     
     login(mockGoogleUser);
-    setCurrentPage('home');
+    // Navigation handled by useNavigate in components
   };
 
   useEffect(() => {
@@ -194,9 +192,8 @@ export const AppProvider = ({ children }) => {
 
   return (
     <AppContext.Provider value={{
-      darkMode, setDarkMode, toggleTheme,
-      isLoggedIn, setIsLoggedIn, login, logout, signInWithGoogle,
-      currentPage, setCurrentPage,
+  darkMode, setDarkMode, toggleTheme,
+  user, login, logout,
       user, setUser, updateUserProfile,
       gameState, setGameState,
       userResults, setUserResults, addUserResult,

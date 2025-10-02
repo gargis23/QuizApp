@@ -1,9 +1,15 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/useApp';
+import { userAPI } from '../api/api';
 
 const Profile = () => {
-  const { user, updateUserProfile, darkMode, setCurrentPage } = useApp();
+  const { user, setUser, darkMode } = useApp();
+  const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -28,9 +34,36 @@ const Profile = () => {
     }
   };
 
-  const handleSave = () => {
-    updateUserProfile(formData);
-    setIsEditing(false);
+  const handleSave = async () => {
+    setIsLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const response = await userAPI.updateProfile({
+        name: formData.name,
+        age: formData.age || undefined,
+        bio: formData.bio || undefined
+      });
+
+      if (response.data.success) {
+        // Update local user data
+        const updatedUser = { ...user, ...response.data.data.user };
+        setUser(updatedUser);
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+
+        setSuccess('Profile updated successfully!');
+        setIsEditing(false);
+
+        // Clear success message after 3 seconds
+        setTimeout(() => setSuccess(''), 3000);
+      }
+    } catch (err) {
+      console.error('Profile update error:', err);
+      setError(err.response?.data?.message || 'Failed to update profile');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleCancel = () => {
@@ -64,9 +97,21 @@ const Profile = () => {
           </p>
         </div>
 
+        {/* Success/Error Messages */}
+        {success && (
+          <div className="mb-4 p-4 rounded-lg bg-green-500/10 border border-green-500/50">
+            <p className="text-green-400 text-center">✓ {success}</p>
+          </div>
+        )}
+        {error && (
+          <div className="mb-4 p-4 rounded-lg bg-red-500/10 border border-red-500/50">
+            <p className="text-red-400 text-center">✗ {error}</p>
+          </div>
+        )}
+
         <div className={`rounded-2xl p-8 ${
-          darkMode 
-            ? 'glassy' 
+          darkMode
+            ? 'glassy'
             : 'bg-white/90 border border-purple-200 shadow-xl'
         }`}>
           {/* Profile Picture Section */}
@@ -297,9 +342,17 @@ const Profile = () => {
               <>
                 <button
                   onClick={handleSave}
-                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-2 rounded-lg font-medium transition-all transform hover:scale-105"
+                  disabled={isLoading}
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-600 disabled:to-gray-600 text-white px-6 py-2 rounded-lg font-medium transition-all transform hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed"
                 >
-                  Save Changes
+                  {isLoading ? (
+                    <div className="flex items-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Saving...
+                    </div>
+                  ) : (
+                    'Save Changes'
+                  )}
                 </button>
                 <button
                   onClick={handleCancel}
@@ -329,7 +382,7 @@ const Profile = () => {
           {/* Back to Home Button */}
           <div className="text-center mt-6">
             <button 
-              onClick={() => setCurrentPage('home')}
+              onClick={() => navigate('/')}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 darkMode 
                   ? 'text-gray-400 hover:text-purple-400'

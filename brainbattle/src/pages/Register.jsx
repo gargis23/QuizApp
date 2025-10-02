@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+// import { useGoogleLogin } from '@react-oauth/google';
 import { useApp } from '../context/useApp';
+import { authAPI } from '../api/api';
 
 const Register = () => {
-  const { login, setCurrentPage, darkMode, signInWithGoogle } = useApp();
+  const navigate = useNavigate();
+  const { setUser, darkMode } = useApp();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -15,6 +19,7 @@ const Register = () => {
   const [captchaAnswer, setCaptchaAnswer] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
+  const [apiError, setApiError] = useState('');
 
   useEffect(() => {
     generateCaptcha();
@@ -100,7 +105,7 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       if (errors.captcha) {
         generateCaptcha();
@@ -108,17 +113,34 @@ const Register = () => {
       }
       return;
     }
-    
+
     setIsLoading(true);
-    
-    setTimeout(() => {
-      login({ 
-        name: formData.name.trim(), 
-        email: formData.email 
+    setApiError('');
+
+    try {
+      const response = await authAPI.register({
+        name: formData.name.trim(),
+        email: formData.email,
+        password: formData.password
       });
-      setCurrentPage('home');
+
+      if (response.data.success) {
+        // Store token and user data
+        localStorage.setItem('token', response.data.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.data.user));
+        setUser(response.data.data.user);
+
+        // Redirect to home
+        navigate('/');
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
+      setApiError(error.response?.data?.message || 'Registration failed. Please try again.');
+      generateCaptcha();
+      setFormData({...formData, captcha: ''});
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   const handleInputChange = (e) => {
@@ -130,13 +152,43 @@ const Register = () => {
     }
   };
 
-  const handleGoogleSignIn = () => {
-    setIsLoading(true);
-    setTimeout(() => {
-      signInWithGoogle();
-      setIsLoading(false);
-    }, 1000);
-  };
+  /*
+  // const handleGoogleSignIn = useGoogleLogin({
+  //   onSuccess: async (tokenResponse) => {
+  //     setIsLoading(true);
+  //     try {
+  //       // Get user info from Google
+  //       const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+  //         headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+  //       });
+  //       const userInfo = await userInfoResponse.json();
+
+  //       // Send to backend
+  //       const response = await authAPI.googleAuth({
+  //         name: userInfo.name,
+  //         email: userInfo.email,
+  //         picture: userInfo.picture,
+  //         googleId: userInfo.sub
+  //       });
+
+  //       if (response.data.success) {
+  //         localStorage.setItem('token', response.data.data.token);
+  //         localStorage.setItem('user', JSON.stringify(response.data.data.user));
+  //         setUser(response.data.data.user);
+  //         navigate('/');
+  //       }
+  //     } catch (error) {
+  //       console.error('Google sign-in error:', error);
+  //       setApiError(error.response?.data?.message || 'Google sign-in failed');
+  //     } finally {
+  //       setIsLoading(false);
+  //     }
+  //   },
+  //   onError: () => {
+  //     setApiError('Google sign-in failed');
+  //   }
+  // });
+  */
 
   const getPasswordStrengthColor = () => {
     if (passwordStrength < 2) return darkMode ? 'bg-red-500' : 'bg-red-400';
@@ -180,6 +232,12 @@ const Register = () => {
             Create your account and start battling
           </p>
         </div>
+
+        {apiError && (
+          <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/50">
+            <p className="text-red-400 text-sm">{apiError}</p>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
@@ -417,6 +475,7 @@ const Register = () => {
           </div>
 
           <div className="mt-6">
+            {/* Google OAuth button commented out
             <button 
               onClick={handleGoogleSignIn}
               disabled={isLoading}
@@ -438,16 +497,17 @@ const Register = () => {
               )}
               Continue with Google
             </button>
+            */}
           </div>
         </div>
 
         <div className="text-center mt-6">
           <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
             Already have an account?{' '}
-            <button 
-              onClick={() => setCurrentPage('login')}
+            <button
+              onClick={() => navigate('/login')}
               className={`font-medium transition-colors ${
-                darkMode 
+                darkMode
                   ? 'text-purple-400 hover:text-purple-300'
                   : 'text-purple-600 hover:text-purple-700'
               }`}
