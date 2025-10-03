@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useApp } from '../context/useApp';
+import { useApp } from '../context/AppContext';
 import { quizQuestions } from '../data/quizQuestions';
 import socketClient from '../socket/socketClient';
 import { roomAPI } from '../api/api';
+import { leaderboardAPI } from '../services/leaderboardAPI';
+import RoomLeaderboard from '../components/RoomLeaderboard';
 
 const Quiz = () => {
   const { gameState, setGameState, darkMode, showPopup, user } = useApp();
@@ -15,6 +17,8 @@ const Quiz = () => {
   const [newMessage, setNewMessage] = useState('');
   const [gameStarted, setGameStarted] = useState(false);
   const [category, setCategory] = useState(null);
+  const [showRoomLeaderboard, setShowRoomLeaderboard] = useState(false);
+  const [gameStartTime, setGameStartTime] = useState(null);
   const chatEndRef = useRef(null);
 
   // Safety check for gameState
@@ -32,6 +36,7 @@ const Quiz = () => {
       console.log('Game starting event received in Quiz:', data);
       setCategory(data.category);
       setGameStarted(true);
+      setGameStartTime(new Date(data.gameStartTime || new Date())); // Use server time if available
       
       // Initialize game state with selected category questions
       const categoryQuestions = quizQuestions[data.category];
@@ -57,6 +62,34 @@ const Quiz = () => {
       }
     });
 
+    // Listen for synchronized question events
+    socketClient.socket?.on('question_started', (data) => {
+      console.log('Question started:', data);
+      setGameState(prev => ({
+        ...prev,
+        currentQuestion: data.questionIndex,
+        timeLeft: data.timeLimit,
+        questionStartTime: new Date(data.startTime)
+      }));
+      setShowAnswer(false);
+      setSelectedAnswer(null);
+    });
+
+    socketClient.socket?.on('question_ended', (data) => {
+      console.log('Question ended:', data);
+      if (data.showAnswer) {
+        setShowAnswer(true);
+      }
+    });
+
+    socketClient.socket?.on('game_completed', (data) => {
+      console.log('Game completed:', data);
+      showPopup(data.message, 'success');
+      setTimeout(() => {
+        endQuiz();
+      }, 2000);
+    });
+
     // Check if game was already started from navigation
     if (gameState.gameStarting && gameState.selectedCategory && !gameStarted) {
       console.log('Initializing game from navigation state');
@@ -64,6 +97,7 @@ const Quiz = () => {
       console.log('Available categories in quizQuestions:', Object.keys(quizQuestions));
       setCategory(gameState.selectedCategory);
       setGameStarted(true);
+      setGameStartTime(new Date()); // Track when game started
       
       // Initialize game state with selected category questions
       const categoryQuestions = quizQuestions[gameState.selectedCategory];
@@ -182,6 +216,9 @@ const Quiz = () => {
       socketClient.socket?.off('host_left');
       socketClient.socket?.off('player_quit');
       socketClient.socket?.off('game_ended');
+      socketClient.socket?.off('question_started');
+      socketClient.socket?.off('question_ended');
+      socketClient.socket?.off('game_completed');
     };
   }, [navigate, setGameState, showPopup, gameState.gameStarting, gameState.selectedCategory, gameStarted]);
 
@@ -194,15 +231,12 @@ const Quiz = () => {
   }, [gameState.currentQuestion, gameState.questions]);
 
   useEffect(() => {
+    // Synchronized timer - only count down, don't auto-progress
     if (gameState?.inGame && gameState?.timeLeft > 0 && !showAnswer) {
       const timer = setTimeout(() => {
         setGameState(prev => ({ ...prev, timeLeft: prev.timeLeft - 1 }));
       }, 1000);
       return () => clearTimeout(timer);
-    } else if (gameState?.timeLeft === 0 && !showAnswer) {
-      setShowAnswer(true);
-      setGameState(prev => ({ ...prev, questionsAttempted: prev.questionsAttempted + 1 }));
-      setTimeout(() => nextQuestion(), 2000);
     }
   }, [gameState?.timeLeft, gameState?.inGame, showAnswer, setGameState]);
 
@@ -214,8 +248,8 @@ const Quiz = () => {
     if (showAnswer) return;
 
     setSelectedAnswer(selectedIndex);
-    setShowAnswer(true);
-
+    // Don't show answer immediately - wait for server sync
+    
     const isCorrect = selectedIndex === currentQuestionData.correct;
     const timeBonus = Math.floor(gameState.timeLeft / 3);
     const scoreIncrease = isCorrect ? currentQuestionData.points + timeBonus : 0;
@@ -227,7 +261,7 @@ const Quiz = () => {
       correctAnswers: isCorrect ? prev.correctAnswers + 1 : prev.correctAnswers
     }));
 
-    setTimeout(() => nextQuestion(), 2000);
+    // Don't auto-progress - wait for server synchronization
   };
 
   const nextQuestion = () => {
@@ -242,7 +276,53 @@ const Quiz = () => {
     }
   };
 
+  const saveGameResult = async (gameResult) => {
+    try {
+      const timeTaken = gameStartTime ? Math.floor((new Date() - gameStartTime) / 1000) : 0;
+      
+      const gameData = {
+        roomCode: gameState.roomCode,
+        playerId: user?.id || user?._id,
+        playerName: user?.name || user?.username || 'Anonymous',
+        category: gameResult.category,
+        score: gameResult.score,
+        questionsAttempted: gameResult.questionsAttempted,
+        correctAnswers: gameResult.correctAnswers,
+        gameStartedAt: gameStartTime?.toISOString() || new Date().toISOString(),
+        timeTaken
+      };
+
+      console.log('User data for saving:', user);
+      console.log('Saving game result:', gameData);
+      
+      // Validate required fields
+      if (!gameData.roomCode || !gameData.playerId) {
+        console.error('Missing required data for saving game result:', {
+          roomCode: gameData.roomCode,
+          playerId: gameData.playerId,
+          user: user
+        });
+        return;
+      }
+
+      const response = await leaderboardAPI.saveGameResult(gameData);
+      
+      if (response.success) {
+        console.log('Game result saved successfully:', response.result);
+      } else {
+        console.error('Failed to save game result:', response.message);
+        console.error('Response:', response);
+      }
+    } catch (error) {
+      console.error('Error saving game result:', error);
+      console.error('Error details:', error.response?.data || error.message);
+      // Don't show error popup to user as game completion should still work
+    }
+  };
+
   const endQuiz = async () => {
+    console.log('endQuiz called - saving game results...');
+    
     const finalResult = {
       category: category || gameState.selectedCategory,
       score: gameState.score,
@@ -252,21 +332,38 @@ const Quiz = () => {
       roomCode: gameState.roomCode
     };
 
+    console.log('Final result data:', finalResult);
+    console.log('Current gameState:', gameState);
+    console.log('Current user:', user);
+
+    // Store roomCode before resetting state
+    const currentRoomCode = gameState.roomCode;
+
+    // Save game result to database
+    await saveGameResult(finalResult);
+
     // End the game in the backend if not already ended
     try {
-      await roomAPI.endGame(gameState.roomCode);
+      await roomAPI.endGame(currentRoomCode);
     } catch (error) {
       console.error('Error ending game:', error);
     }
     
-    setGameState(prev => ({ 
-      ...prev, 
-      inGame: false,
-      selectedCategory: null,
-      roomCode: null
-    }));
+    // Show room leaderboard first, then reset state
+    console.log('Opening room leaderboard for room:', currentRoomCode);
     
-    showFinalScorePopup(finalResult);
+    // Wait a moment to ensure data is saved before showing leaderboard
+    setTimeout(() => {
+      setShowRoomLeaderboard(true);
+      
+      // Reset state after showing leaderboard
+      setGameState(prev => ({ 
+        ...prev, 
+        inGame: false,
+        selectedCategory: null
+        // Keep roomCode for leaderboard
+      }));
+    }, 1000);
   };
 
   const quitQuiz = async () => {
@@ -818,6 +915,19 @@ const Quiz = () => {
           </div>
         </div>
       </div>
+      
+      {/* Room Leaderboard Modal */}
+      {showRoomLeaderboard && (
+        <RoomLeaderboard
+          roomCode={gameState.roomCode}
+          gameStartedAt={gameStartTime}
+          onClose={() => {
+            setShowRoomLeaderboard(false);
+            // Clear room code after closing leaderboard
+            setGameState(prev => ({ ...prev, roomCode: null }));
+          }}
+        />
+      )}
     </div>
   );
 };

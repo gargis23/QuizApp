@@ -4,3 +4,5 @@ import { AppContext } from './AppContext';
 export function useApp() {
   return useContext(AppContext);
 }
+
+export default useApp;

@@ -93,4 +93,5 @@ export const roomAPI = {
 
 export const healthCheck = () => api.get('/health');
 
+export { api };
 export default api;

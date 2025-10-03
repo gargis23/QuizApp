@@ -333,6 +333,7 @@ module.exports = (io) => {
     });
 
     // Handle starting the game (host only)
+    // Handle game starting with synchronized questions
     socket.on('start_game', async ({ roomCode, userId, category }) => {
       try {
         const room = await Room.findOne({ roomCode })
@@ -383,6 +384,7 @@ module.exports = (io) => {
           const gameStartData = {
             category: room.category,
             message: 'Game is starting now!',
+            gameStartTime: new Date().toISOString(),
             players: room.players.map(p => ({
               id: p.user._id.toString(),
               name: p.user.name
@@ -392,13 +394,49 @@ module.exports = (io) => {
           console.log(`Broadcasting game_starting to room ${roomCode}:`, gameStartData);
           console.log(`Sockets in room ${roomCode}:`, io.sockets.adapter.rooms.get(roomCode)?.size || 0);
           io.to(roomCode).emit('game_starting', gameStartData);
-        }, 1000); // Reduced delay from 2000 to 1000
+
+          // Start synchronized question timing (30 seconds per question + 2 seconds review)
+          startQuestionTimer(roomCode, 0);
+        }, 1000);
 
       } catch (error) {
         console.error('Error starting game:', error);
         socket.emit('error', { message: 'Failed to start game' });
       }
     });
+
+    // Function to handle synchronized question timing
+    const startQuestionTimer = (roomCode, questionIndex) => {
+      const totalQuestions = 10; // Standard quiz length
+      
+      if (questionIndex >= totalQuestions) {
+        // Game completed
+        io.to(roomCode).emit('game_completed', {
+          message: 'Quiz completed! Calculating results...'
+        });
+        return;
+      }
+
+      // Notify all players about new question
+      io.to(roomCode).emit('question_started', {
+        questionIndex,
+        timeLimit: 30,
+        startTime: new Date().toISOString()
+      });
+
+      // After 30 seconds, show answer and move to next question
+      setTimeout(() => {
+        io.to(roomCode).emit('question_ended', {
+          questionIndex,
+          showAnswer: true
+        });
+
+        // After 2 seconds of showing answer, start next question
+        setTimeout(() => {
+          startQuestionTimer(roomCode, questionIndex + 1);
+        }, 2000);
+      }, 30000);
+    };
 
     // Handle player quitting game
     socket.on('quit_game', async ({ roomCode, userId, userName }) => {

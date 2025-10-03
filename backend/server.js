@@ -56,7 +56,7 @@ app.use(passport.session());
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const quizRoutes = require('./routes/quizRoutes');
-const leaderboardRoutes = require('./routes/leaderboardRoutes');
+const leaderboardRoutes = require('./routes/leaderboard');
 const roomRoutes = require('./routes/roomRoutes');
 
 // API routes

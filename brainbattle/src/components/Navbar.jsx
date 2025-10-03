@@ -5,14 +5,14 @@ import { useApp } from '../context/useApp';
 const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { darkMode, toggleTheme, logout, user } = useApp();
+  const { darkMode, toggleDarkMode, logout, user } = useApp();
   const [showThemeDropdown, setShowThemeDropdown] = useState(false);
 
   const currentPath = location.pathname;
 
   const handleThemeSelect = (theme) => {
     if ((theme === 'dark' && !darkMode) || (theme === 'light' && darkMode)) {
-      toggleTheme();
+      toggleDarkMode();
     }
     setShowThemeDropdown(false);
   };
