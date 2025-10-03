@@ -1,13 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useApp } from '../context/useApp';
+import { useApp } from '../context/AppContext';
 import { userAPI } from '../api/api';
+import { leaderboardAPI } from '../services/leaderboardAPI';
 
 const Profile = () => {
   const { user, setUser, darkMode } = useApp();
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [playerStats, setPlayerStats] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [formData, setFormData] = useState({
@@ -17,6 +20,38 @@ const Profile = () => {
     bio: user?.bio || '',
     picture: user?.picture || ''
   });
+
+  // Fetch player statistics on component mount
+  useEffect(() => {
+    const fetchPlayerStats = async () => {
+      if (!user?.id && !user?._id) {
+        console.log('No user ID available for stats fetch');
+        setStatsLoading(false);
+        return;
+      }
+
+      try {
+        setStatsLoading(true);
+        const playerId = user.id || user._id;
+        console.log('Fetching stats for player:', playerId);
+        
+        const response = await leaderboardAPI.getPlayerStats(playerId);
+        
+        if (response.success) {
+          setPlayerStats(response.stats);
+          console.log('Player stats loaded:', response.stats);
+        } else {
+          console.error('Failed to fetch player stats:', response.message);
+        }
+      } catch (error) {
+        console.error('Error fetching player stats:', error);
+      } finally {
+        setStatsLoading(false);
+      }
+    };
+
+    fetchPlayerStats();
+  }, [user]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -96,6 +131,33 @@ const Profile = () => {
     });
     setIsEditing(false);
     setError('');
+  };
+
+  const refreshStats = async () => {
+    if (!user?.id && !user?._id) return;
+
+    try {
+      setStatsLoading(true);
+      const playerId = user.id || user._id;
+      console.log('Refreshing stats for player:', playerId);
+      
+      const response = await leaderboardAPI.getPlayerStats(playerId);
+      
+      if (response.success) {
+        setPlayerStats(response.stats);
+        console.log('Player stats refreshed:', response.stats);
+        setSuccess('Statistics updated successfully!');
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        console.error('Failed to refresh player stats:', response.message);
+        setError('Failed to refresh statistics');
+      }
+    } catch (error) {
+      console.error('Error refreshing player stats:', error);
+      setError('Failed to refresh statistics');
+    } finally {
+      setStatsLoading(false);
+    }
   };
 
   return (
@@ -312,65 +374,117 @@ const Profile = () => {
                 Game Statistics
               </h3>
 
-              <div className={`p-4 rounded-lg ${
-                darkMode ? 'bg-gray-800/50' : 'bg-purple-50'
-              }`}>
-                <div className="flex justify-between items-center mb-2">
-                  <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
-                    Total Score
-                  </span>
-                  <span className={`font-bold text-xl ${
-                    darkMode ? 'text-purple-400' : 'text-purple-600'
-                  }`}>
-                    {user?.totalScore || 0}
-                  </span>
+              {statsLoading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mx-auto"></div>
+                  <p className={`mt-2 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Loading statistics...
+                  </p>
                 </div>
-              </div>
+              ) : playerStats ? (
+                <>
+                  <div className={`p-4 rounded-lg ${
+                    darkMode ? 'bg-gray-800/50' : 'bg-purple-50'
+                  }`}>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
+                        Total Score
+                      </span>
+                      <span className={`font-bold text-xl ${
+                        darkMode ? 'text-purple-400' : 'text-purple-600'
+                      }`}>
+                        {playerStats.totalScore || 0}
+                      </span>
+                    </div>
+                  </div>
 
-              <div className={`p-4 rounded-lg ${
-                darkMode ? 'bg-gray-800/50' : 'bg-pink-50'
-              }`}>
-                <div className="flex justify-between items-center mb-2">
-                  <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
-                    Games Played
-                  </span>
-                  <span className={`font-bold text-xl ${
-                    darkMode ? 'text-pink-400' : 'text-pink-600'
+                  <div className={`p-4 rounded-lg ${
+                    darkMode ? 'bg-gray-800/50' : 'bg-pink-50'
                   }`}>
-                    {user?.gamesPlayed || 0}
-                  </span>
-                </div>
-              </div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
+                        Games Played
+                      </span>
+                      <span className={`font-bold text-xl ${
+                        darkMode ? 'text-pink-400' : 'text-pink-600'
+                      }`}>
+                        {playerStats.totalGames || 0}
+                      </span>
+                    </div>
+                  </div>
 
-              <div className={`p-4 rounded-lg ${
-                darkMode ? 'bg-gray-800/50' : 'bg-green-50'
-              }`}>
-                <div className="flex justify-between items-center mb-2">
-                  <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
-                    Accuracy
-                  </span>
-                  <span className={`font-bold text-xl ${
-                    darkMode ? 'text-green-400' : 'text-green-600'
+                  <div className={`p-4 rounded-lg ${
+                    darkMode ? 'bg-gray-800/50' : 'bg-green-50'
                   }`}>
-                    {user?.accuracy || 0}%
-                  </span>
-                </div>
-              </div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
+                        Average Accuracy
+                      </span>
+                      <span className={`font-bold text-xl ${
+                        darkMode ? 'text-green-400' : 'text-green-600'
+                      }`}>
+                        {Math.round(playerStats.averageAccuracy || 0)}%
+                      </span>
+                    </div>
+                  </div>
 
-              <div className={`p-4 rounded-lg ${
-                darkMode ? 'bg-gray-800/50' : 'bg-orange-50'
-              }`}>
-                <div className="flex justify-between items-center mb-2">
-                  <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
-                    Best Score
-                  </span>
-                  <span className={`font-bold text-xl ${
-                    darkMode ? 'text-orange-400' : 'text-orange-600'
+                  <div className={`p-4 rounded-lg ${
+                    darkMode ? 'bg-gray-800/50' : 'bg-orange-50'
                   }`}>
-                    {user?.bestScore || 0}
-                  </span>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
+                        Best Score
+                      </span>
+                      <span className={`font-bold text-xl ${
+                        darkMode ? 'text-orange-400' : 'text-orange-600'
+                      }`}>
+                        {playerStats.bestScore || 0}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className={`p-4 rounded-lg ${
+                    darkMode ? 'bg-gray-800/50' : 'bg-blue-50'
+                  }`}>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
+                        Average Score
+                      </span>
+                      <span className={`font-bold text-xl ${
+                        darkMode ? 'text-blue-400' : 'text-blue-600'
+                      }`}>
+                        {Math.round(playerStats.averageScore || 0)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {playerStats.lastPlayed && (
+                    <div className={`p-3 rounded-lg border ${
+                      darkMode 
+                        ? 'bg-gray-800/30 border-gray-700' 
+                        : 'bg-gray-50 border-gray-200'
+                    }`}>
+                      <div className="text-center">
+                        <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                          Last Played: {new Date(playerStats.lastPlayed).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className={`p-6 rounded-lg text-center ${
+                  darkMode ? 'bg-gray-800/50' : 'bg-gray-50'
+                }`}>
+                  <div className="text-4xl mb-2">🎮</div>
+                  <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    No game statistics yet
+                  </p>
+                  <p className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                    Play some games to see your stats!
+                  </p>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 

@@ -55,6 +55,22 @@ const gameResultSchema = new mongoose.Schema({
   timeTaken: {
     type: Number, // in seconds
     default: 0
+  },
+  isPartial: {
+    type: Boolean,
+    default: false // true if game was not completed (host left, player quit, etc.)
+  },
+  reason: {
+    type: String, // reason for partial completion
+    default: null
+  },
+  tabSwitchCount: {
+    type: Number,
+    default: 0 // number of times player switched tabs
+  },
+  cheatingDetected: {
+    type: Number,
+    default: 0 // number of cheating instances detected
   }
 }, {
   timestamps: true

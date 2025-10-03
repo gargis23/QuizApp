@@ -13,12 +13,15 @@ const Quiz = () => {
   const [currentQuestionData, setCurrentQuestionData] = useState(null);
   const [showAnswer, setShowAnswer] = useState(false);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
+  const [answerLocked, setAnswerLocked] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [gameStarted, setGameStarted] = useState(false);
   const [category, setCategory] = useState(null);
   const [showRoomLeaderboard, setShowRoomLeaderboard] = useState(false);
   const [gameStartTime, setGameStartTime] = useState(null);
+  const [tabSwitchCount, setTabSwitchCount] = useState(0);
+  const [isTabVisible, setIsTabVisible] = useState(true);
   const chatEndRef = useRef(null);
 
   // Safety check for gameState
@@ -73,6 +76,7 @@ const Quiz = () => {
       }));
       setShowAnswer(false);
       setSelectedAnswer(null);
+      setAnswerLocked(false); // Reset answer lock for new question
     });
 
     socketClient.socket?.on('question_ended', (data) => {
@@ -154,13 +158,18 @@ const Quiz = () => {
     });
 
     // Listen for host leaving
-    socketClient.socket?.on('host_left', (data) => {
+    socketClient.socket?.on('host_left', async (data) => {
       console.log('Host left in quiz:', data);
       console.log('Current user:', user);
       console.log('Current gameState:', gameState);
       
       // Only trigger if we're actually in a game and this is a real host leave event
       if (gameState?.inGame && gameState?.roomCode) {
+        // Save partial results before leaving
+        if (gameState.questionsAttempted > 0) {
+          await savePartialResult('Host left the game');
+        }
+        
         showPopup(data.message || 'Host has left the game. Returning to home.', 'error');
         
         // Reset ALL game state when host leaves
@@ -186,8 +195,11 @@ const Quiz = () => {
         setGameStarted(false);
         setShowAnswer(false);
         setSelectedAnswer(null);
+        setAnswerLocked(false);
         setChatMessages([]);
         setNewMessage('');
+        setTabSwitchCount(0);
+        setIsTabVisible(true);
         
         setTimeout(() => {
           navigate('/');
@@ -227,6 +239,7 @@ const Quiz = () => {
       setCurrentQuestionData(gameState.questions[gameState.currentQuestion]);
       setShowAnswer(false);
       setSelectedAnswer(null);
+      setAnswerLocked(false); // Reset answer lock for new question
     }
   }, [gameState.currentQuestion, gameState.questions]);
 
@@ -244,15 +257,67 @@ const Quiz = () => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
 
-  const answerQuestion = (selectedIndex) => {
-    if (showAnswer) return;
+  // Anti-cheating: Tab switching detection (not window focus)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (gameState?.inGame && !showAnswer) {
+        if (document.hidden) {
+          // Tab switched away - user is cheating
+          console.log('Tab switched away - potential cheating detected');
+          setIsTabVisible(false);
+        } else {
+          // Tab came back into focus
+          if (!isTabVisible) {
+            // User switched back to this tab - apply penalty
+            setTabSwitchCount(prev => prev + 1);
+            setGameState(prev => ({
+              ...prev,
+              timeLeft: Math.max(0, prev.timeLeft - 10), // Reduce time by 10 seconds
+              cheatingDetected: prev.cheatingDetected + 1
+            }));
+            
+            showPopup('Tab switching detected! 10 seconds penalty applied.', 'warning');
+            console.log('Anti-cheat: Tab switch detected, penalty applied');
+          }
+          setIsTabVisible(true);
+        }
+      }
+    };
 
+    // Only use visibilitychange event - this specifically detects tab switching
+    // Don't use window focus/blur as those trigger for window switching too
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [gameState?.inGame, showAnswer, isTabVisible, setGameState, showPopup]);
+
+  const answerQuestion = (selectedIndex) => {
+    // Prevent multiple answers - if answer is already locked, return early
+    if (showAnswer || answerLocked) {
+      console.log('Answer already selected or showing answer, ignoring click');
+      return;
+    }
+
+    console.log('Answer selected:', selectedIndex);
+    
+    // Lock the answer immediately to prevent multiple selections
+    setAnswerLocked(true);
     setSelectedAnswer(selectedIndex);
     // Don't show answer immediately - wait for server sync
     
     const isCorrect = selectedIndex === currentQuestionData.correct;
     const timeBonus = Math.floor(gameState.timeLeft / 3);
     const scoreIncrease = isCorrect ? currentQuestionData.points + timeBonus : 0;
+
+    console.log('Score calculation:', {
+      isCorrect,
+      basePoints: currentQuestionData.points,
+      timeBonus,
+      scoreIncrease,
+      currentScore: gameState.score
+    });
 
     setGameState(prev => ({
       ...prev,
@@ -276,7 +341,7 @@ const Quiz = () => {
     }
   };
 
-  const saveGameResult = async (gameResult) => {
+  const saveGameResult = async (gameResult, isPartial = false) => {
     try {
       const timeTaken = gameStartTime ? Math.floor((new Date() - gameStartTime) / 1000) : 0;
       
@@ -289,11 +354,14 @@ const Quiz = () => {
         questionsAttempted: gameResult.questionsAttempted,
         correctAnswers: gameResult.correctAnswers,
         gameStartedAt: gameStartTime?.toISOString() || new Date().toISOString(),
-        timeTaken
+        timeTaken,
+        isPartial: isPartial, // Flag to indicate if this is a partial result
+        tabSwitchCount: tabSwitchCount,
+        cheatingDetected: gameState.cheatingDetected || 0
       };
 
       console.log('User data for saving:', user);
-      console.log('Saving game result:', gameData);
+      console.log(`Saving ${isPartial ? 'partial' : 'complete'} game result:`, gameData);
       
       // Validate required fields
       if (!gameData.roomCode || !gameData.playerId) {
@@ -308,7 +376,7 @@ const Quiz = () => {
       const response = await leaderboardAPI.saveGameResult(gameData);
       
       if (response.success) {
-        console.log('Game result saved successfully:', response.result);
+        console.log(`${isPartial ? 'Partial' : 'Complete'} game result saved successfully:`, response.result);
       } else {
         console.error('Failed to save game result:', response.message);
         console.error('Response:', response);
@@ -318,6 +386,24 @@ const Quiz = () => {
       console.error('Error details:', error.response?.data || error.message);
       // Don't show error popup to user as game completion should still work
     }
+  };
+
+  const savePartialResult = async (reason = 'Game interrupted') => {
+    console.log(`Saving partial result due to: ${reason}`);
+    
+    const partialResult = {
+      category: category || gameState.selectedCategory,
+      score: gameState.score || 0,
+      questionsAttempted: gameState.questionsAttempted || 0,
+      correctAnswers: gameState.correctAnswers || 0,
+      accuracy: gameState.questionsAttempted > 0 
+        ? Math.round((gameState.correctAnswers / gameState.questionsAttempted) * 100) 
+        : 0,
+      roomCode: gameState.roomCode,
+      reason: reason
+    };
+
+    await saveGameResult(partialResult, true);
   };
 
   const endQuiz = async () => {
@@ -368,6 +454,11 @@ const Quiz = () => {
 
   const quitQuiz = async () => {
     try {
+      // Save partial results if any questions were attempted
+      if (gameState?.questionsAttempted > 0) {
+        await savePartialResult('Player quit the game');
+      }
+
       // Notify via socket that player is quitting
       socketClient.socket?.emit('quit_game', {
         roomCode: gameState?.roomCode,
@@ -403,8 +494,11 @@ const Quiz = () => {
       setGameStarted(false);
       setShowAnswer(false);
       setSelectedAnswer(null);
+      setAnswerLocked(false);
       setChatMessages([]);
       setNewMessage('');
+      setTabSwitchCount(0);
+      setIsTabVisible(true);
 
       // Always navigate to home when quitting
       showPopup('You have quit the quiz', 'info');
@@ -686,6 +780,15 @@ const Quiz = () => {
                   Room: {gameState.roomCode}
                 </div>
               )}
+              {(tabSwitchCount > 0 || (gameState?.cheatingDetected || 0) > 0) && (
+                <div className={`text-xs mt-1 px-2 py-1 rounded ${
+                  darkMode 
+                    ? 'bg-red-900/50 text-red-400 border border-red-800' 
+                    : 'bg-red-100 text-red-700 border border-red-300'
+                }`}>
+                  ⚠️ Cheating Detected: {tabSwitchCount + (gameState?.cheatingDetected || 0)}
+                </div>
+              )}
             </div>
           </div>
 
@@ -811,6 +914,16 @@ const Quiz = () => {
                     ? " bg-gray-700" 
                     : " bg-gray-100";
                 }
+              } else if (answerLocked && index === selectedAnswer) {
+                // Show selected answer before revealing correct answer
+                buttonClass += darkMode 
+                  ? " bg-purple-600 border-purple-400" 
+                  : " bg-purple-100 border-purple-400 text-purple-800";
+              } else if (answerLocked) {
+                // Disable other options when answer is locked
+                buttonClass += darkMode 
+                  ? " bg-gray-800 opacity-50 cursor-not-allowed" 
+                  : " bg-gray-200 opacity-50 cursor-not-allowed";
               } else {
                 buttonClass += darkMode 
                   ? " bg-gray-700 hover:bg-gradient-to-r hover:from-purple-600 hover:to-pink-600 hover:scale-105 hover:border-purple-500 cursor-pointer"
@@ -821,7 +934,7 @@ const Quiz = () => {
                 <button
                   key={index}
                   onClick={() => answerQuestion(index)}
-                  disabled={showAnswer}
+                  disabled={showAnswer || answerLocked}
                   className={buttonClass}
                 >
                   <span className={`font-bold mr-3 ${
@@ -832,10 +945,26 @@ const Quiz = () => {
                   <span className={darkMode ? 'text-white' : 'text-gray-800'}>
                     {option}
                   </span>
+                  {answerLocked && index === selectedAnswer && !showAnswer && (
+                    <span className="ml-2 text-sm">✓ Selected</span>
+                  )}
                 </button>
               );
             })}
           </div>
+
+          {answerLocked && !showAnswer && (
+            <div className="mt-4 text-center">
+              <div className={`inline-flex items-center px-4 py-2 rounded-lg ${
+                darkMode 
+                  ? 'bg-purple-800/50 text-purple-300 border border-purple-600' 
+                  : 'bg-purple-100 text-purple-700 border border-purple-300'
+              }`}>
+                <span className="mr-2">🔒</span>
+                Answer selected: {String.fromCharCode(65 + selectedAnswer)}. Waiting for results...
+              </div>
+            </div>
+          )}
 
           {showAnswer && (
             <div className="mt-6 text-center">

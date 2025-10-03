@@ -171,7 +171,11 @@ router.post('/save-result', async (req, res) => {
       questionsAttempted,
       correctAnswers,
       gameStartedAt,
-      timeTaken
+      timeTaken,
+      isPartial,
+      reason,
+      tabSwitchCount,
+      cheatingDetected
     } = req.body;
 
     console.log('Received save-result request:', req.body);
@@ -219,17 +223,21 @@ router.post('/save-result', async (req, res) => {
       correctAnswers: parseInt(correctAnswers) || 0,
       accuracy,
       gameStartedAt: new Date(gameStartedAt),
-      timeTaken: parseInt(timeTaken) || 0
+      timeTaken: parseInt(timeTaken) || 0,
+      isPartial: isPartial || false,
+      reason: reason || null,
+      tabSwitchCount: parseInt(tabSwitchCount) || 0,
+      cheatingDetected: parseInt(cheatingDetected) || 0
     });
 
     console.log('Attempting to save game result:', gameResult);
 
     const savedResult = await gameResult.save();
-    console.log('Game result saved successfully:', savedResult._id);
+    console.log(`${isPartial ? 'Partial' : 'Complete'} game result saved successfully:`, savedResult._id);
 
     res.json({
       success: true,
-      message: 'Game result saved successfully',
+      message: `${isPartial ? 'Partial' : 'Complete'} game result saved successfully`,
       result: savedResult
     });
   } catch (error) {
@@ -284,8 +292,22 @@ router.get('/player/:playerId/stats', async (req, res) => {
   try {
     const { playerId } = req.params;
 
+    console.log('Fetching stats for player:', playerId);
+
+    // Ensure playerId is a valid ObjectId
+    let validPlayerId;
+    try {
+      validPlayerId = new mongoose.Types.ObjectId(playerId);
+    } catch (error) {
+      console.error('Invalid playerId format:', playerId);
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid player ID format'
+      });
+    }
+
     const stats = await GameResult.aggregate([
-      { $match: { player: mongoose.Types.ObjectId(playerId) } },
+      { $match: { player: validPlayerId } },
       {
         $group: {
           _id: null,
@@ -302,6 +324,8 @@ router.get('/player/:playerId/stats', async (req, res) => {
       }
     ]);
 
+    console.log('Stats aggregation result:', stats);
+
     const playerStats = stats[0] || {
       totalGames: 0,
       totalScore: 0,
@@ -314,13 +338,17 @@ router.get('/player/:playerId/stats', async (req, res) => {
       lastPlayed: null
     };
 
+    const formattedStats = {
+      ...playerStats,
+      averageScore: Math.round((playerStats.averageScore || 0) * 100) / 100,
+      averageAccuracy: Math.round((playerStats.averageAccuracy || 0) * 100) / 100
+    };
+
+    console.log('Sending formatted stats:', formattedStats);
+
     res.json({
       success: true,
-      stats: {
-        ...playerStats,
-        averageScore: Math.round(playerStats.averageScore * 100) / 100,
-        averageAccuracy: Math.round(playerStats.averageAccuracy * 100) / 100
-      }
+      stats: formattedStats
     });
   } catch (error) {
     console.error('Error fetching player stats:', error);
