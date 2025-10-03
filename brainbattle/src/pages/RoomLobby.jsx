@@ -1,97 +1,295 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/useApp';
+import { roomAPI } from '../api/api';
+import socketClient from '../socket/socketClient';
 
 const RoomLobby = () => {
   const { gameState, setGameState, darkMode, user } = useApp();
   const navigate = useNavigate();
-  const [players, setPlayers] = useState([
-    { id: 1, name: user?.name || 'You', isHost: true, email: user?.email }
-  ]);
+  const [roomData, setRoomData] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [chatMessage, setChatMessage] = useState('');
-  const [chatMessages, setChatMessages] = useState([
-    { sender: 'System', message: 'Welcome to the room! Waiting for other players...', time: new Date() }
-  ]);
+  const [chatMessages, setChatMessages] = useState([]);
   const [roomClosed, setRoomClosed] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const categories = ['Movies', 'Music', 'Current Affairs', 'History', 'Food'];
-  const isHost = players.find(p => p.email === user?.email)?.isHost || false;
 
-  // Simulate players joining (for demonstration)
+  // Fetch room data from backend
+  const fetchRoomData = async () => {
+    if (!gameState.roomCode) {
+      setError('No room code provided');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const response = await roomAPI.getRoom(gameState.roomCode);
+      if (response.data.success) {
+        const room = response.data.data.room;
+        setRoomData(room);
+        setSelectedCategory(room.category || '');
+        setRoomClosed(room.isEntryClosed || false);
+        setChatMessages(room.chatMessages || []);
+      }
+    } catch (err) {
+      console.error('Error fetching room:', err);
+      setError(err.response?.data?.message || 'Failed to fetch room data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const mockPlayers = [
-      { id: 2, name: 'Player2', isHost: false, email: 'player2@example.com' },
-      { id: 3, name: 'Player3', isHost: false, email: 'player3@example.com' },
-    ];
+    if (!gameState.roomCode || !user) {
+      navigate('/');
+      return;
+    }
 
-    let timeouts = [];
-    mockPlayers.forEach((player, index) => {
-      const timeout = setTimeout(() => {
-        if (!roomClosed) {
-          setPlayers(prev => [...prev, player]);
-          setChatMessages(prev => [...prev, {
-            sender: 'System',
-            message: `${player.name} joined the room`,
-            time: new Date()
-          }]);
+    fetchRoomData();
+
+    // Connect socket if not already connected
+    const token = localStorage.getItem('token');
+    if (!socketClient.connected) {
+      socketClient.connect(user.id, token);
+    }
+
+    // Small delay to ensure socket is ready
+    setTimeout(() => {
+      // Join the room
+      console.log('Joining room:', gameState.roomCode);
+      socketClient.joinRoom(gameState.roomCode, user.id, user.name);
+    }, 500);
+
+    // Listen for room state updates
+    socketClient.onRoomState((data) => {
+      console.log('Room state received:', data);
+      console.log('Current roomData before update:', roomData);
+      // Use socket data directly instead of refetching
+      if (data.roomCode === gameState.roomCode) {
+        setRoomData(prev => {
+          const updatedRoom = {
+            ...prev,
+            players: data.players || prev?.players || [],
+            category: data.category || prev?.category,
+            isEntryClosed: data.isEntryClosed || prev?.isEntryClosed,
+            status: data.status || prev?.status,
+            host: data.host || prev?.host
+          };
+          console.log('Updated roomData:', updatedRoom);
+          return updatedRoom;
+        });
+        
+        // Update chat messages from socket data
+        if (data.chatMessages) {
+          console.log('Updating chat messages from socket:', data.chatMessages.length);
+          setChatMessages(data.chatMessages);
         }
-      }, (index + 1) * 3000);
-      timeouts.push(timeout);
+      }
     });
 
-    return () => timeouts.forEach(t => clearTimeout(t));
-  }, [roomClosed]);
+    // Listen for new players joining
+    socketClient.onPlayerJoined((data) => {
+      console.log('Player joined event:', data.player);
+      // Refresh room data for player joins to ensure accuracy
+      fetchRoomData();
+    });
+
+    // Listen for players leaving
+    socketClient.onPlayerLeft((data) => {
+      console.log('Player left:', data.userId);
+      // Refresh room data for player leaves to ensure accuracy
+      fetchRoomData();
+    });
+
+    // Listen for chat messages (real-time)
+    socketClient.onChatMessage((data) => {
+      console.log('Chat message received:', data);
+      setChatMessages(prev => {
+        const newMessages = [...prev, {
+          sender: data.sender,
+          message: data.message,
+          time: data.time || new Date()
+        }];
+        console.log('Updated chat messages:', newMessages.length);
+        return newMessages;
+      });
+    });
+
+    // Listen for game starting
+    socketClient.onGameStarting((data) => {
+      console.log('Game starting event received with data:', data);
+      console.log('Current gameState before update:', gameState);
+      setGameState(prev => ({
+        ...prev,
+        selectedCategory: data.category,
+        waitingForHost: false,
+        inGame: true,  // Set inGame to true immediately
+        gameStarting: true,  // Add flag to indicate game is starting
+        powerups: { hint: 3, skip: 2, freeze: 1 },
+        currentQuestion: 0,
+        score: 0,
+        timeLeft: 30,
+        questionsAttempted: 0,
+        correctAnswers: 0,
+        cheatingDetected: 0
+      }));
+      console.log('Navigating to /quiz');
+      navigate('/quiz');
+    });
+
+    // Listen for host leaving
+    socketClient.socket?.on('host_left', (data) => {
+      console.log('Host left in lobby:', data);
+      
+      // Reset game state when host leaves
+      setGameState(prev => ({ 
+        ...prev, 
+        inGame: false,
+        selectedCategory: null,
+        currentQuestion: 0,
+        score: 0,
+        timeLeft: 30,
+        questionsAttempted: 0,
+        correctAnswers: 0,
+        questions: [],
+        powerups: { hint: 3, skip: 2, freeze: 1 },
+        cheatingDetected: 0,
+        roomCode: null,
+        gameStarting: false,
+        waitingForHost: false
+      }));
+      
+      alert(data.message || 'Host has left the room. Returning to home.');
+      navigate('/');
+    });
+
+    // Cleanup on unmount
+    return () => {
+      // Remove specific listeners instead of all
+      socketClient.socket?.off('game_starting');
+      socketClient.socket?.off('host_left');
+      socketClient.socket?.off('room_state_updated');
+      socketClient.socket?.off('chat_message');
+      socketClient.socket?.off('error');
+    };
+  }, [gameState.roomCode, user, navigate]);
+
+  const handleLeaveRoom = () => {
+    socketClient.leaveRoom(gameState.roomCode, user.id, user.name);
+    setGameState(prev => ({ ...prev, roomCode: null }));
+    navigate('/');
+  };
 
   const handleKickPlayer = (playerId) => {
-    const player = players.find(p => p.id === playerId);
-    setPlayers(players.filter(p => p.id !== playerId));
-    setChatMessages(prev => [...prev, {
-      sender: 'System',
-      message: `${player.name} was removed from the room`,
-      time: new Date()
-    }]);
+    const isHost = roomData?.host?._id === user?.id || roomData?.host?.id === user?.id;
+    if (!isHost) return;
+    socketClient.kickPlayer(gameState.roomCode, playerId, user.id);
   };
 
   const handleCloseEntry = () => {
-    setRoomClosed(true);
-    setChatMessages(prev => [...prev, {
-      sender: 'System',
-      message: 'Room entry is now closed. No new players can join.',
-      time: new Date()
-    }]);
-  };
-
-  const handleLeaveRoom = () => {
-    setGameState(prev => ({ ...prev, roomCode: null }));
-  navigate('/');
+    const isHost = roomData?.host?._id === user?.id || roomData?.host?.id === user?.id;
+    if (!isHost) return;
+    socketClient.closeEntry(gameState.roomCode, user.id);
   };
 
   const handleSendMessage = (e) => {
     e.preventDefault();
     if (chatMessage.trim()) {
-      setChatMessages(prev => [...prev, {
-        sender: user?.name || 'You',
-        message: chatMessage,
-        time: new Date()
-      }]);
+      console.log('Sending message:', chatMessage, 'to room:', gameState.roomCode);
+      socketClient.sendMessage(gameState.roomCode, user.id, user.name, chatMessage);
       setChatMessage('');
     }
   };
 
+  const handleCategorySelect = (category) => {
+    const isHost = roomData?.host?._id === user?.id || roomData?.host?.id === user?.id;
+    if (!isHost) return;
+    setSelectedCategory(category);
+    socketClient.selectCategory(gameState.roomCode, category, user.id);
+  };
+
   const handleStartGame = () => {
+    const isHost = roomData?.host?._id === user?.id || roomData?.host?.id === user?.id;
+    if (!isHost) return;
+    
     if (!selectedCategory) {
       alert('Please select a category first!');
       return;
     }
-    
-    setGameState(prev => ({
-      ...prev,
-      selectedCategory,
-      waitingForHost: true
-    }));
-  navigate('/waiting');
+
+    if (roomData?.players?.length < 2) {
+      alert('Need at least 2 players to start!');
+      return;
+    }
+
+    socketClient.startGame(gameState.roomCode, user.id, selectedCategory);
   };
+
+  if (loading) {
+    return (
+      <div className={`min-h-screen flex items-center justify-center transition-colors ${
+        darkMode 
+          ? 'bg-gradient-to-br from-gray-900 via-purple-900/20 to-pink-900/20' 
+          : 'bg-gradient-to-br from-purple-50 via-pink-50/30 to-purple-50'
+      }`}>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-500 mx-auto mb-4"></div>
+          <p className={darkMode ? 'text-gray-300' : 'text-gray-700'}>
+            Loading room...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={`min-h-screen flex items-center justify-center transition-colors ${
+        darkMode 
+          ? 'bg-gradient-to-br from-gray-900 via-purple-900/20 to-pink-900/20' 
+          : 'bg-gradient-to-br from-purple-50 via-pink-50/30 to-purple-50'
+      }`}>
+        <div className="text-center">
+          <div className="text-6xl mb-4">❌</div>
+          <h2 className={`text-2xl font-bold mb-4 ${
+            darkMode ? 'text-red-400' : 'text-red-600'
+          }`}>
+            Room Error
+          </h2>
+          <p className={`mb-6 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+            {error}
+          </p>
+          <button
+            onClick={() => navigate('/')}
+            className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-3 rounded-lg font-semibold"
+          >
+            Back to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!roomData) {
+    return (
+      <div className={`min-h-screen flex items-center justify-center transition-colors ${
+        darkMode 
+          ? 'bg-gradient-to-br from-gray-900 via-purple-900/20 to-pink-900/20' 
+          : 'bg-gradient-to-br from-purple-50 via-pink-50/30 to-purple-50'
+      }`}>
+        <div className="text-center">
+          <p className={darkMode ? 'text-gray-300' : 'text-gray-700'}>
+            No room data available
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const isHost = roomData.host._id === user.id || roomData.host.id === user.id;
 
   return (
     <div className={`min-h-screen p-4 transition-colors ${
@@ -120,6 +318,13 @@ const RoomLobby = () => {
               }`}>{gameState.roomCode}</span>
             </p>
           </div>
+          <div className="mt-4">
+            <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              Host: <span className={`font-semibold ${darkMode ? 'text-purple-400' : 'text-purple-600'}`}>
+                {roomData.host.name} {isHost && '(You)'}
+              </span>
+            </p>
+          </div>
           {roomClosed && (
             <div className="mt-4 inline-block px-4 py-2 rounded-lg bg-red-500/20 border border-red-500">
               <p className="text-red-400 font-medium">🔒 Room Entry Closed</p>
@@ -130,8 +335,8 @@ const RoomLobby = () => {
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Main Content Area */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Host Controls */}
-            {isHost && (
+            {/* Host Controls - Only show if user is host */}
+            {isHost ? (
               <div className={`p-6 rounded-xl ${
                 darkMode ? 'glassy' : 'bg-white border border-purple-200'
               }`}>
@@ -154,64 +359,60 @@ const RoomLobby = () => {
                       return (
                         <button
                           key={category}
-                          onClick={() => setSelectedCategory(category)}
+                          onClick={() => handleCategorySelect(category)}
                           className={`p-4 rounded-lg border-2 transition-all transform hover:scale-105 ${
                             selectedCategory === category
                               ? (darkMode 
-                                ? 'border-purple-500 bg-purple-600/20' 
-                                : 'border-purple-500 bg-purple-50')
+                                  ? 'bg-purple-600 border-purple-500 text-white' 
+                                  : 'bg-purple-600 border-purple-600 text-white')
                               : (darkMode 
-                                ? 'border-gray-600 hover:border-purple-400' 
-                                : 'border-purple-200 hover:border-purple-400')
+                                  ? 'border-gray-600 hover:border-purple-500 text-gray-300' 
+                                  : 'border-gray-300 hover:border-purple-400 text-gray-700')
                           }`}
                         >
                           <div className="text-3xl mb-2">{icons[index]}</div>
-                          <div className={`text-sm font-medium ${
-                            darkMode ? 'text-white' : 'text-gray-800'
-                          }`}>
-                            {category}
-                          </div>
+                          <div className="font-medium">{category}</div>
                         </button>
                       );
                     })}
                   </div>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex flex-wrap gap-3">
-                  <button
-                    onClick={handleCloseEntry}
-                    disabled={roomClosed}
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                      darkMode 
-                        ? 'bg-orange-600 hover:bg-orange-700 disabled:bg-gray-600 text-white'
-                        : 'bg-orange-500 hover:bg-orange-600 disabled:bg-gray-400 text-white'
-                    } disabled:cursor-not-allowed`}
-                  >
-                    🔒 Close Entry
-                  </button>
-
+                {/* Host Action Buttons */}
+                <div className="flex gap-3">
+                  {!roomClosed && (
+                    <button
+                      onClick={handleCloseEntry}
+                      className={`flex-1 py-3 rounded-lg font-medium transition-colors ${
+                        darkMode 
+                          ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
+                          : 'bg-yellow-500 hover:bg-yellow-600 text-white'
+                      }`}
+                    >
+                      🔒 Close Entry
+                    </button>
+                  )}
                   <button
                     onClick={handleStartGame}
-                    disabled={!selectedCategory || players.length < 2}
-                    className={`px-6 py-2 rounded-lg font-bold transition-all transform hover:scale-105 disabled:scale-100 ${
-                      darkMode 
-                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-600 disabled:to-gray-600 text-white'
-                        : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-400 disabled:to-gray-400 text-white'
-                    } disabled:cursor-not-allowed`}
+                    disabled={!selectedCategory || roomData.players.length < 2}
+                    className={`flex-1 py-3 rounded-lg font-bold transition-all transform hover:scale-105 ${
+                      !selectedCategory || roomData.players.length < 2
+                        ? 'bg-gray-400 cursor-not-allowed text-gray-200'
+                        : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg'
+                    }`}
                   >
                     🚀 Start Game
                   </button>
                 </div>
 
                 {!selectedCategory && (
-                  <p className={`text-sm mt-3 ${
+                  <p className={`text-sm mt-4 ${
                     darkMode ? 'text-yellow-400' : 'text-orange-600'
                   }`}>
                     ⚠️ Please select a category to start the game
                   </p>
                 )}
-                {players.length < 2 && (
+                {roomData.players.length < 2 && (
                   <p className={`text-sm mt-2 ${
                     darkMode ? 'text-yellow-400' : 'text-orange-600'
                   }`}>
@@ -219,10 +420,8 @@ const RoomLobby = () => {
                   </p>
                 )}
               </div>
-            )}
-
-            {/* Non-Host View */}
-            {!isHost && (
+            ) : (
+              /* Non-Host View */
               <div className={`p-6 rounded-xl ${
                 darkMode ? 'glassy' : 'bg-white border border-purple-200'
               }`}>
@@ -234,7 +433,7 @@ const RoomLobby = () => {
                 <p className={`mb-4 ${
                   darkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}>
-                  The host is setting up the game. Please wait...
+                  {hostInfo ? `${hostInfo.name} is setting up the game. Please wait...` : 'The host is setting up the game. Please wait...'}
                 </p>
                 
                 {selectedCategory && (
@@ -284,7 +483,7 @@ const RoomLobby = () => {
                           ? (darkMode ? 'text-yellow-400' : 'text-orange-600')
                           : msg.sender === user?.name 
                           ? (darkMode ? 'text-purple-400' : 'text-purple-600')
-                          : (darkMode ? 'text-blue-400' : 'text-blue-600')
+                          : (darkMode ? 'text-pink-400' : 'text-pink-600')
                       }`}>
                         {msg.sender}:
                       </span>
@@ -292,11 +491,6 @@ const RoomLobby = () => {
                         {msg.message}
                       </span>
                     </div>
-                    <span className={`text-xs ${
-                      darkMode ? 'text-gray-500' : 'text-gray-400'
-                    }`}>
-                      {msg.time.toLocaleTimeString()}
-                    </span>
                   </div>
                 ))}
               </div>
@@ -308,19 +502,23 @@ const RoomLobby = () => {
                   value={chatMessage}
                   onChange={(e) => setChatMessage(e.target.value)}
                   placeholder="Type a message..."
-                  className={`flex-1 p-3 rounded-lg border focus:outline-none transition-colors ${
+                  className={`flex-1 p-3 rounded-lg focus:outline-none transition-colors ${
                     darkMode 
-                      ? 'bg-gray-700 border-gray-600 text-white focus:border-purple-500'
-                      : 'bg-white border-purple-200 text-gray-800 focus:border-purple-400'
+                      ? 'bg-gray-700 border border-gray-600 text-white focus:border-purple-500'
+                      : 'bg-white border-2 border-purple-200 text-gray-800 focus:border-purple-400'
                   }`}
+                  maxLength="200"
                 />
                 <button
                   type="submit"
-                  className={`px-6 py-3 rounded-lg font-medium transition-all transform hover:scale-105 ${
-                    darkMode 
-                      ? 'bg-purple-600 hover:bg-purple-700'
-                      : 'bg-purple-600 hover:bg-purple-700'
-                  } text-white`}
+                  disabled={!chatMessage.trim()}
+                  className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+                    !chatMessage.trim()
+                      ? 'bg-gray-400 cursor-not-allowed text-gray-200'
+                      : (darkMode 
+                          ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                          : 'bg-purple-600 hover:bg-purple-700 text-white')
+                  }`}
                 >
                   Send
                 </button>
@@ -328,47 +526,61 @@ const RoomLobby = () => {
             </div>
           </div>
 
-          {/* Players Sidebar */}
-          <div className="lg:col-span-1">
-            <div className={`p-6 rounded-xl sticky top-20 ${
-              darkMode ? 'glassy' : 'bg-white border border-purple-200'
+          {/* Sidebar - Players List */}
+          <div className={`p-6 rounded-xl ${
+            darkMode ? 'glassy' : 'bg-white border border-purple-200'
+          }`}>
+            <h3 className={`text-xl font-bold mb-4 ${
+              darkMode ? 'text-purple-400' : 'text-purple-600'
             }`}>
-              <h3 className={`text-xl font-bold mb-4 ${
-                darkMode ? 'text-purple-400' : 'text-purple-600'
-              }`}>
-                👥 Players ({players.length})
-              </h3>
+              👥 Players ({roomData?.players?.length || 0})
+            </h3>
 
-              <div className="space-y-3">
-                {players.map(player => (
+            <div className="space-y-3">
+              {roomData?.players?.map((player) => {
+                const playerUser = player.user || player;
+                const playerId = playerUser._id || playerUser.id;
+                const playerName = playerUser.name;
+                const isPlayerHost = roomData.host._id === playerId || roomData.host.id === playerId;
+                
+                console.log('Rendering player:', { playerId, playerName, isPlayerHost, player });
+                
+                return (
                   <div
-                    key={player.id}
-                    className={`p-3 rounded-lg flex items-center justify-between ${
-                      player.isHost
+                    key={playerId}
+                    className={`flex items-center justify-between p-3 rounded-lg ${
+                      isPlayerHost
                         ? (darkMode 
                           ? 'bg-gradient-to-r from-purple-600/30 to-pink-600/30 border-2 border-purple-500'
                           : 'bg-gradient-to-r from-purple-100 to-pink-100 border-2 border-purple-400')
-                        : (darkMode ? 'bg-gray-800/50' : 'bg-purple-50/50')
+                        : (darkMode ? 'bg-gray-800/50' : 'bg-purple-50')
                     }`}
                   >
                     <div className="flex items-center space-x-3">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        darkMode 
-                          ? 'bg-gradient-to-r from-purple-500 to-pink-500'
-                          : 'bg-gradient-to-r from-purple-600 to-pink-600'
-                      }`}>
-                        <span className="text-white font-bold">
-                          {player.name.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
+                      {playerUser.picture ? (
+                        <img
+                          src={playerUser.picture}
+                          alt={playerName}
+                          className="w-10 h-10 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                          darkMode ? 'bg-purple-600' : 'bg-purple-500'
+                        }`}>
+                          <span className="text-white font-bold">
+                            {playerName?.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                      )}
                       <div>
-                        <div className={`font-semibold ${
+                        <div className={`font-medium ${
                           darkMode ? 'text-white' : 'text-gray-800'
                         }`}>
-                          {player.name}
+                          {playerName}
+                          {playerId === user?.id && ' (You)'}
                         </div>
-                        {player.isHost && (
-                          <span className={`text-xs ${
+                        {isPlayerHost && (
+                          <span className={`text-xs font-medium ${
                             darkMode ? 'text-yellow-400' : 'text-orange-600'
                           }`}>
                             👑 Host
@@ -377,9 +589,9 @@ const RoomLobby = () => {
                       </div>
                     </div>
 
-                    {isHost && !player.isHost && (
+                    {isHost && !isPlayerHost && (
                       <button
-                        onClick={() => handleKickPlayer(player.id)}
+                        onClick={() => handleKickPlayer(playerId)}
                         className={`p-2 rounded-lg transition-colors ${
                           darkMode 
                             ? 'hover:bg-red-600/20 text-red-400'
@@ -391,19 +603,19 @@ const RoomLobby = () => {
                       </button>
                     )}
                   </div>
-                ))}
-              </div>
-
-              {!roomClosed && (
-                <div className={`mt-4 p-3 rounded-lg text-center text-sm ${
-                  darkMode 
-                    ? 'bg-blue-900/20 text-blue-400'
-                    : 'bg-blue-50 text-blue-700'
-                }`}>
-                  Waiting for more players to join...
-                </div>
-              )}
+                );
+              })}
             </div>
+
+            {!roomClosed && (
+              <div className={`mt-4 p-3 rounded-lg text-center text-sm ${
+                darkMode 
+                  ? 'bg-blue-900/20 text-blue-400'
+                  : 'bg-blue-50 text-blue-700'
+              }`}>
+                Waiting for more players to join...
+              </div>
+            )}
           </div>
         </div>
       </div>

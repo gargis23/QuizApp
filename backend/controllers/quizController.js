@@ -6,45 +6,53 @@ const User = require('../models/User');
 // @access  Private
 exports.submitQuizResult = async (req, res) => {
   try {
-    const { category, score, correctAnswers, totalQuestions, accuracy, timeTaken, roomCode, cheatingDetected, powerupsUsed } = req.body;
-
-    // Create quiz result
-    const quizResult = await QuizResult.create({
+    const { score, correctAnswers, totalQuestions, accuracy, category, roomCode } = req.body;
+    
+    // Save to QuizResult
+    const result = await QuizResult.create({
       user: req.user.id,
-      category,
       score,
       correctAnswers,
       totalQuestions,
       accuracy,
-      timeTaken,
-      roomCode,
-      isMultiplayer: !!roomCode,
-      cheatingDetected,
-      powerupsUsed: powerupsUsed || { hints: 0, skips: 0, freezes: 0 }
+      category,
+      roomCode
     });
-
-    // Update user stats
-    const user = await User.findById(req.user.id);
-    await user.updateGameStats(score, correctAnswers, totalQuestions);
-
-    res.status(201).json({
-      success: true,
-      message: 'Quiz result submitted successfully',
-      data: {
-        result: quizResult,
-        userStats: {
-          totalScore: user.totalScore,
-          gamesPlayed: user.gamesPlayed,
-          accuracy: user.accuracy,
-          bestScore: user.bestScore
+    
+    // If roomCode provided, save to Room.results
+    if (roomCode) {
+      const room = await Room.findOne({ roomCode });
+      if (room) {
+        room.results.push({
+          user: req.user.id,
+          score,
+          accuracy,
+          correctAnswers,
+          totalQuestions,
+          completedAt: new Date()
+        });
+        
+        // Check if all players finished
+        if (room.results.length === room.players.length) {
+          room.status = 'completed';
+          room.completedAt = Date.now();
         }
+        
+        await room.save();
       }
+    }
+    
+    // Update user stats
+    await user.updateGameStats(score, correctAnswers, totalQuestions);
+    
+    res.status(200).json({
+      success: true,
+      data: { result }
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Error submitting quiz result',
-      error: error.message
+      message: 'Error submitting result'
     });
   }
 };

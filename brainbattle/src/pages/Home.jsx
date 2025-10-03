@@ -1,71 +1,146 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/useApp';
+import { roomAPI } from '../api/api';
+import socketClient from '../socket/socketClient';
 
 const Home = () => {
-  const { user, gameState, setGameState, darkMode } = useApp();
+  const { user, darkMode } = useApp();
   const navigate = useNavigate();
   const [roomCode, setRoomCode] = useState('');
   const [showCreateRoom, setShowCreateRoom] = useState(false);
+  const [createdRoomCode, setCreatedRoomCode] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [activeRooms, setActiveRooms] = useState([]);
+  const [roomsLoading, setRoomsLoading] = useState(false);
 
-  const generateRoomCode = () => {
-    return Math.random().toString(36).substring(2, 8).toUpperCase();
+  const { gameState, setGameState } = useApp();
+
+  // Fetch active rooms
+  const fetchActiveRooms = async () => {
+    setRoomsLoading(true);
+    try {
+      const response = await roomAPI.getAllRooms();
+      if (response.data.success) {
+        setActiveRooms(response.data.data.rooms);
+      }
+    } catch (err) {
+      console.error('Error fetching rooms:', err);
+    } finally {
+      setRoomsLoading(false);
+    }
   };
 
-  const createRoom = () => {
-  if (!user) {
-  navigate('/login');
+  // Fetch rooms on component mount and when user logs in
+  useEffect(() => {
+    fetchActiveRooms();
+    
+    // Refresh rooms every 30 seconds
+    const interval = setInterval(fetchActiveRooms, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  const createRoom = async () => {
+    if (!user) {
+      navigate('/login');
       return;
     }
-    const code = generateRoomCode();
-    setGameState(prev => ({ ...prev, roomCode: code }));
-    setShowCreateRoom(true);
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await roomAPI.createRoom();
+      
+      if (response.data.success) {
+        const newRoomCode = response.data.data.room.roomCode;
+        setCreatedRoomCode(newRoomCode);
+        setShowCreateRoom(true);
+        
+        setGameState(prev => ({
+          ...prev,
+          roomCode: newRoomCode
+        }));
+        
+        // Refresh rooms list
+        fetchActiveRooms();
+      }
+    } catch (err) {
+      console.error('Error creating room:', err);
+      setError(err.response?.data?.message || 'Failed to create room. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const joinRoom = () => {
-  if (!user) {
-  navigate('/login');
+  const joinRoom = async () => {
+    if (!user) {
+      navigate('/login');
       return;
     }
-    if (roomCode.length === 6) {
-      setGameState(prev => ({ ...prev, roomCode: roomCode.toUpperCase() }));
-  navigate('/lobby');
-    } else {
-      alert('Please enter a valid 6-character room code');
+
+    if (!roomCode || roomCode.length !== 6) {
+      setError('Please enter a valid 6-character room code');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await roomAPI.joinRoom(roomCode);
+      
+      if (response.data.success) {
+        setGameState(prev => ({
+          ...prev,
+          roomCode: roomCode
+        }));
+
+        // Connect socket and navigate to waiting page (participants go to waiting)
+        const token = localStorage.getItem('token');
+        if (!socketClient.connected) {
+          socketClient.connect(user.id, token);
+        }
+
+        // Participants go to waiting page, not lobby
+        navigate('/waiting');
+      }
+    } catch (err) {
+      console.error('Error joining room:', err);
+      setError(err.response?.data?.message || 'Failed to join room. Please check the code and try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
   const goToLobby = () => {
+    // Host goes to lobby after creating room
+    const token = localStorage.getItem('token');
+    if (!socketClient.connected) {
+      socketClient.connect(user.id, token);
+    }
     navigate('/lobby');
   };
 
   return (
     <div className={`min-h-screen transition-colors ${
       darkMode 
-        ? 'bg-gradient-to-br from-gray-900 via-purple-900/20 to-pink-900/20'
+        ? 'bg-gradient-to-br from-gray-900 via-purple-900/20 to-pink-900/20' 
         : 'bg-gradient-to-br from-purple-50 via-pink-50/30 to-purple-50'
     }`}>
-      {/* Hero Section */}
-      <div className="relative min-h-screen flex items-center justify-center px-4">
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-pink-500/10"></div>
-        
-        <div className={`rounded-3xl p-12 max-w-4xl mx-auto text-center relative z-10 ${
-          darkMode ? 'glassy' : 'bg-white/90 border border-purple-200 shadow-2xl'
-        }`}>
-          <div className="mb-8">
-            <h1 className={`text-6xl font-bold mb-4 animate-pulse ${
+      <div className="container mx-auto px-4 py-16">
+        <div className="max-w-4xl mx-auto text-center">
+          {/* Hero Section */}
+          <div className="mb-12">
+            <h1 className={`text-5xl md:text-6xl font-bold mb-6 ${
               darkMode 
-                ? 'bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent'
-                : 'bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 bg-clip-text text-transparent'
+                ? 'bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent'
+                : 'bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent'
             }`}>
-              BrainBattle
+              Welcome to BrainBattle
             </h1>
-            <p className={`text-2xl mb-8 ${
-              darkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>
-              Challenge Your Mind in the Ultimate Multiplayer Quiz Experience
-            </p>
-            <p className={`text-lg max-w-2xl mx-auto ${
+            <p className={`text-xl mb-4 ${
               darkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>
               Test your knowledge across Movies, Music, Current Affairs, History, and Food. 
@@ -81,8 +156,8 @@ const Home = () => {
                 Join the battle to test your knowledge!
               </p>
               <div className="flex gap-4 justify-center">
-          <button 
-            onClick={() => navigate('/register')}
+                <button 
+                  onClick={() => navigate('/register')}
                   className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 px-8 py-3 rounded-lg font-semibold text-lg text-white transition-all transform hover:scale-105 shadow-lg"
                 >
                   Sign Up Now
@@ -106,6 +181,16 @@ const Home = () => {
               }`}>
                 Ready to Battle?
               </h2>
+
+              {error && (
+                <div className={`p-4 rounded-lg mb-4 ${
+                  darkMode 
+                    ? 'bg-red-900/30 border border-red-500 text-red-400'
+                    : 'bg-red-50 border-2 border-red-400 text-red-700'
+                }`}>
+                  {error}
+                </div>
+              )}
               
               <div className="grid md:grid-cols-2 gap-6 max-w-2xl mx-auto">
                 <div className={`p-6 rounded-xl ${
@@ -118,11 +203,16 @@ const Home = () => {
                   </h3>
                   <button 
                     onClick={createRoom}
-                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 py-3 rounded-lg font-semibold text-white transition-all transform hover:scale-105 shadow-md"
+                    disabled={loading}
+                    className={`w-full py-3 rounded-lg font-semibold text-white transition-all transform hover:scale-105 shadow-md ${
+                      loading 
+                        ? 'bg-gray-400 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700'
+                    }`}
                   >
-                    Create Room
+                    {loading ? 'Creating...' : 'Create Room'}
                   </button>
-                  {showCreateRoom && gameState.roomCode && (
+                  {showCreateRoom && createdRoomCode && (
                     <div className={`mt-4 p-4 rounded-lg ${
                       darkMode 
                         ? 'bg-green-900/30 border border-green-500'
@@ -136,7 +226,7 @@ const Home = () => {
                       <p className={`text-2xl font-bold mt-2 ${
                         darkMode ? 'text-white' : 'text-gray-800'
                       }`}>
-                        Code: {gameState.roomCode}
+                        Code: {createdRoomCode}
                       </p>
                       <p className={`text-sm mt-2 ${
                         darkMode ? 'text-gray-300' : 'text-gray-600'
@@ -179,9 +269,14 @@ const Home = () => {
                   />
                   <button 
                     onClick={joinRoom}
-                    className="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 py-3 rounded-lg font-semibold text-white transition-all transform hover:scale-105 shadow-md"
+                    disabled={loading || !roomCode}
+                    className={`w-full py-3 rounded-lg font-semibold text-white transition-all transform hover:scale-105 shadow-md ${
+                      loading || !roomCode
+                        ? 'bg-gray-400 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700'
+                    }`}
                   >
-                    Join Room
+                    {loading ? 'Joining...' : 'Join Room'}
                   </button>
                 </div>
               </div>
@@ -197,6 +292,101 @@ const Home = () => {
                 >
                   View Leaderboard
                 </button>
+              </div>
+
+              {/* Active Rooms Section */}
+              <div className="mt-8">
+                <div className={`p-6 rounded-xl ${
+                  darkMode ? 'glassy' : 'bg-white/80 border-2 border-purple-200'
+                }`}>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className={`text-xl font-semibold ${
+                      darkMode ? 'text-purple-400' : 'text-purple-600'
+                    }`}>
+                      🎮 Active Rooms
+                    </h3>
+                    <button
+                      onClick={fetchActiveRooms}
+                      disabled={roomsLoading}
+                      className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                        darkMode 
+                          ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                          : 'bg-purple-600 hover:bg-purple-700 text-white'
+                      } ${roomsLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      {roomsLoading ? '↻' : '🔄'} Refresh
+                    </button>
+                  </div>
+
+                  {roomsLoading ? (
+                    <div className={`text-center py-4 ${
+                      darkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
+                      Loading rooms...
+                    </div>
+                  ) : activeRooms.length === 0 ? (
+                    <div className={`text-center py-4 ${
+                      darkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
+                      No active rooms available. Create one to get started!
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-60 overflow-y-auto">
+                      {activeRooms.map((room) => (
+                        <div
+                          key={room.roomCode}
+                          className={`p-4 rounded-lg border transition-colors ${
+                            darkMode 
+                              ? 'bg-gray-800/50 border-gray-600 hover:border-purple-500'
+                              : 'bg-purple-50/50 border-purple-200 hover:border-purple-400'
+                          }`}
+                        >
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className={`text-lg font-bold ${
+                                  darkMode ? 'text-white' : 'text-gray-800'
+                                }`}>
+                                  {room.roomCode}
+                                </span>
+                                <span className={`text-xs px-2 py-1 rounded-full ${
+                                  room.status === 'waiting' 
+                                    ? (darkMode ? 'bg-green-600/20 text-green-400' : 'bg-green-100 text-green-700')
+                                    : (darkMode ? 'bg-orange-600/20 text-orange-400' : 'bg-orange-100 text-orange-700')
+                                }`}>
+                                  {room.status}
+                                </span>
+                              </div>
+                              <div className={`text-sm ${
+                                darkMode ? 'text-gray-300' : 'text-gray-600'
+                              }`}>
+                                <div>Host: <span className="font-medium">{room.host}</span></div>
+                                <div>Players: {room.players}/{room.maxPlayers}</div>
+                                {room.category && (
+                                  <div>Category: <span className="font-medium">{room.category}</span></div>
+                                )}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setRoomCode(room.roomCode);
+                                // Auto-scroll to join section
+                                document.querySelector('input[placeholder="Enter Room Code"]')?.scrollIntoView({ behavior: 'smooth' });
+                              }}
+                              className={`ml-3 px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                                darkMode 
+                                  ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                                  : 'bg-purple-600 hover:bg-purple-700 text-white'
+                              }`}
+                            >
+                              Copy Code
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}

@@ -26,6 +26,12 @@ const Profile = () => {
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
+      // Check file size (max 2MB)
+      if (file.size > 2 * 1024 * 1024) {
+        setError('Image size should be less than 2MB');
+        return;
+      }
+
       const reader = new FileReader();
       reader.onload = (e) => {
         setFormData({ ...formData, picture: e.target.result });
@@ -40,17 +46,30 @@ const Profile = () => {
     setSuccess('');
 
     try {
+      // Send all data including picture to backend to save in database
       const response = await userAPI.updateProfile({
         name: formData.name,
         age: formData.age || undefined,
-        bio: formData.bio || undefined
+        bio: formData.bio || undefined,
+        picture: formData.picture || undefined // Save to database, not localStorage
       });
 
       if (response.data.success) {
-        // Update local user data
-        const updatedUser = { ...user, ...response.data.data.user };
+        // Update user context with data from database
+        const updatedUser = response.data.data.user;
         setUser(updatedUser);
+        
+        // Update localStorage with fresh data from database
         localStorage.setItem('user', JSON.stringify(updatedUser));
+
+        // Update form data to match database
+        setFormData({
+          name: updatedUser.name,
+          email: updatedUser.email,
+          age: updatedUser.age || '',
+          bio: updatedUser.bio || '',
+          picture: updatedUser.picture || ''
+        });
 
         setSuccess('Profile updated successfully!');
         setIsEditing(false);
@@ -67,6 +86,7 @@ const Profile = () => {
   };
 
   const handleCancel = () => {
+    // Reset to user data from database
     setFormData({
       name: user?.name || '',
       email: user?.email || '',
@@ -75,6 +95,7 @@ const Profile = () => {
       picture: user?.picture || ''
     });
     setIsEditing(false);
+    setError('');
   };
 
   return (
@@ -140,7 +161,7 @@ const Profile = () => {
                   darkMode 
                     ? 'bg-purple-600 hover:bg-purple-700' 
                     : 'bg-purple-500 hover:bg-purple-600'
-                } text-white`}>
+                } text-white shadow-lg`}>
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
                   </svg>
@@ -196,11 +217,11 @@ const Profile = () => {
                   className={`w-full p-3 border rounded-lg transition-colors ${
                     isEditing 
                       ? (darkMode 
-                        ? 'bg-gray-700 border-gray-600 text-white focus:border-purple-500'
-                        : 'bg-white border-purple-200 text-gray-800 focus:border-purple-400')
+                          ? 'bg-gray-700 border-gray-600 text-white focus:border-purple-500' 
+                          : 'bg-white border-purple-200 text-gray-800 focus:border-purple-400')
                       : (darkMode 
-                        ? 'bg-gray-800 border-gray-700 text-gray-300'
-                        : 'bg-gray-50 border-gray-200 text-gray-600')
+                          ? 'bg-gray-800/50 border-gray-700 text-gray-300 cursor-not-allowed' 
+                          : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed')
                   } focus:outline-none`}
                 />
               </div>
@@ -209,23 +230,20 @@ const Profile = () => {
                 <label className={`block text-sm font-medium mb-2 ${
                   darkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}>
-                  Email Address
+                  Email
                 </label>
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
-                  onChange={handleInputChange}
-                  disabled={true} // Email should not be editable
-                  className={`w-full p-3 border rounded-lg ${
+                  disabled
+                  className={`w-full p-3 border rounded-lg cursor-not-allowed ${
                     darkMode 
-                      ? 'bg-gray-800 border-gray-700 text-gray-300'
-                      : 'bg-gray-50 border-gray-200 text-gray-600'
-                  } cursor-not-allowed`}
+                      ? 'bg-gray-800/50 border-gray-700 text-gray-400'
+                      : 'bg-gray-50 border-gray-200 text-gray-500'
+                  }`}
                 />
-                <p className={`text-xs mt-1 ${
-                  darkMode ? 'text-gray-500' : 'text-gray-400'
-                }`}>
+                <p className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
                   Email cannot be changed
                 </p>
               </div>
@@ -234,7 +252,7 @@ const Profile = () => {
                 <label className={`block text-sm font-medium mb-2 ${
                   darkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}>
-                  Age (Optional)
+                  Age
                 </label>
                 <input
                   type="number"
@@ -243,34 +261,24 @@ const Profile = () => {
                   onChange={handleInputChange}
                   disabled={!isEditing}
                   min="13"
-                  max="100"
+                  max="120"
                   className={`w-full p-3 border rounded-lg transition-colors ${
                     isEditing 
                       ? (darkMode 
-                        ? 'bg-gray-700 border-gray-600 text-white focus:border-purple-500'
-                        : 'bg-white border-purple-200 text-gray-800 focus:border-purple-400')
+                          ? 'bg-gray-700 border-gray-600 text-white focus:border-purple-500' 
+                          : 'bg-white border-purple-200 text-gray-800 focus:border-purple-400')
                       : (darkMode 
-                        ? 'bg-gray-800 border-gray-700 text-gray-300'
-                        : 'bg-gray-50 border-gray-200 text-gray-600')
+                          ? 'bg-gray-800/50 border-gray-700 text-gray-300 cursor-not-allowed' 
+                          : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed')
                   } focus:outline-none`}
-                  placeholder="Enter your age"
                 />
               </div>
-            </div>
-
-            {/* Additional Information */}
-            <div className="space-y-4">
-              <h3 className={`text-lg font-semibold mb-4 ${
-                darkMode ? 'text-purple-400' : 'text-purple-600'
-              }`}>
-                Additional Information
-              </h3>
 
               <div>
                 <label className={`block text-sm font-medium mb-2 ${
                   darkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}>
-                  Bio (Optional)
+                  Bio
                 </label>
                 <textarea
                   name="bio"
@@ -282,115 +290,139 @@ const Profile = () => {
                   className={`w-full p-3 border rounded-lg transition-colors resize-none ${
                     isEditing 
                       ? (darkMode 
-                        ? 'bg-gray-700 border-gray-600 text-white focus:border-purple-500'
-                        : 'bg-white border-purple-200 text-gray-800 focus:border-purple-400')
+                          ? 'bg-gray-700 border-gray-600 text-white focus:border-purple-500' 
+                          : 'bg-white border-purple-200 text-gray-800 focus:border-purple-400')
                       : (darkMode 
-                        ? 'bg-gray-800 border-gray-700 text-gray-300'
-                        : 'bg-gray-50 border-gray-200 text-gray-600')
+                          ? 'bg-gray-800/50 border-gray-700 text-gray-300 cursor-not-allowed' 
+                          : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed')
                   } focus:outline-none`}
-                  placeholder="Tell us a bit about yourself..."
+                  placeholder="Tell us about yourself..."
                 />
-                <p className={`text-xs mt-1 text-right ${
-                  darkMode ? 'text-gray-500' : 'text-gray-400'
-                }`}>
-                  {formData.bio.length}/200 characters
+                <p className={`text-xs mt-1 text-right ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                  {formData.bio?.length || 0}/200
                 </p>
               </div>
+            </div>
 
-              {/* Quiz Stats */}
+            {/* Game Statistics */}
+            <div className="space-y-4">
+              <h3 className={`text-lg font-semibold mb-4 ${
+                darkMode ? 'text-purple-400' : 'text-purple-600'
+              }`}>
+                Game Statistics
+              </h3>
+
               <div className={`p-4 rounded-lg ${
                 darkMode ? 'bg-gray-800/50' : 'bg-purple-50'
               }`}>
-                <h4 className={`font-semibold mb-3 ${
-                  darkMode ? 'text-purple-400' : 'text-purple-600'
-                }`}>
-                  Quiz Statistics
-                </h4>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Games Played:</span>
-                    <div className={`font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-                      {user?.gamesPlayed || 0}
-                    </div>
-                  </div>
-                  <div>
-                    <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Best Score:</span>
-                    <div className={`font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-                      {user?.bestScore || 0}
-                    </div>
-                  </div>
-                  <div>
-                    <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Accuracy:</span>
-                    <div className={`font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-                      {user?.accuracy || 0}%
-                    </div>
-                  </div>
-                  <div>
-                    <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Rank:</span>
-                    <div className={`font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-                      #{user?.rank || 'N/A'}
-                    </div>
-                  </div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
+                    Total Score
+                  </span>
+                  <span className={`font-bold text-xl ${
+                    darkMode ? 'text-purple-400' : 'text-purple-600'
+                  }`}>
+                    {user?.totalScore || 0}
+                  </span>
+                </div>
+              </div>
+
+              <div className={`p-4 rounded-lg ${
+                darkMode ? 'bg-gray-800/50' : 'bg-pink-50'
+              }`}>
+                <div className="flex justify-between items-center mb-2">
+                  <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
+                    Games Played
+                  </span>
+                  <span className={`font-bold text-xl ${
+                    darkMode ? 'text-pink-400' : 'text-pink-600'
+                  }`}>
+                    {user?.gamesPlayed || 0}
+                  </span>
+                </div>
+              </div>
+
+              <div className={`p-4 rounded-lg ${
+                darkMode ? 'bg-gray-800/50' : 'bg-green-50'
+              }`}>
+                <div className="flex justify-between items-center mb-2">
+                  <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
+                    Accuracy
+                  </span>
+                  <span className={`font-bold text-xl ${
+                    darkMode ? 'text-green-400' : 'text-green-600'
+                  }`}>
+                    {user?.accuracy || 0}%
+                  </span>
+                </div>
+              </div>
+
+              <div className={`p-4 rounded-lg ${
+                darkMode ? 'bg-gray-800/50' : 'bg-orange-50'
+              }`}>
+                <div className="flex justify-between items-center mb-2">
+                  <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
+                    Best Score
+                  </span>
+                  <span className={`font-bold text-xl ${
+                    darkMode ? 'text-orange-400' : 'text-orange-600'
+                  }`}>
+                    {user?.bestScore || 0}
+                  </span>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex justify-center gap-4 mt-8">
-            {isEditing ? (
+          <div className="mt-8 flex gap-4 justify-center">
+            {!isEditing ? (
+              <>
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="px-8 py-3 rounded-lg font-semibold bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white transition-all transform hover:scale-105 shadow-lg"
+                >
+                  Edit Profile
+                </button>
+                <button
+                  onClick={() => navigate('/leaderboard')}
+                  className={`px-8 py-3 rounded-lg font-semibold transition-all transform hover:scale-105 ${
+                    darkMode 
+                      ? 'border-2 border-purple-500 hover:bg-purple-500 text-purple-400 hover:text-white'
+                      : 'border-2 border-purple-600 hover:bg-purple-600 text-purple-600 hover:text-white'
+                  }`}
+                >
+                  View Leaderboard
+                </button>
+              </>
+            ) : (
               <>
                 <button
                   onClick={handleSave}
                   disabled={isLoading}
-                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-600 disabled:to-gray-600 text-white px-6 py-2 rounded-lg font-medium transition-all transform hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed"
+                  className={`px-8 py-3 rounded-lg font-semibold text-white transition-all transform hover:scale-105 shadow-lg ${
+                    isLoading
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'
+                  }`}
                 >
-                  {isLoading ? (
-                    <div className="flex items-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Saving...
-                    </div>
-                  ) : (
-                    'Save Changes'
-                  )}
+                  {isLoading ? 'Saving...' : 'Save Changes'}
                 </button>
                 <button
                   onClick={handleCancel}
-                  className={`px-6 py-2 rounded-lg font-medium transition-all ${
-                    darkMode 
-                      ? 'border-2 border-gray-500 text-gray-300 hover:bg-gray-700'
-                      : 'border-2 border-gray-300 text-gray-600 hover:bg-gray-50'
+                  disabled={isLoading}
+                  className={`px-8 py-3 rounded-lg font-semibold transition-all ${
+                    isLoading
+                      ? 'bg-gray-400 cursor-not-allowed text-gray-200'
+                      : (darkMode 
+                          ? 'bg-red-600 hover:bg-red-700 text-white'
+                          : 'bg-red-500 hover:bg-red-600 text-white')
                   }`}
                 >
                   Cancel
                 </button>
               </>
-            ) : (
-              <button
-                onClick={() => setIsEditing(true)}
-                className={`px-6 py-2 rounded-lg font-medium transition-all transform hover:scale-105 ${
-                  darkMode 
-                    ? 'border-2 border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white'
-                    : 'border-2 border-purple-500 text-purple-600 hover:bg-purple-500 hover:text-white'
-                }`}
-              >
-                Edit Profile
-              </button>
             )}
-          </div>
-
-          {/* Back to Home Button */}
-          <div className="text-center mt-6">
-            <button 
-              onClick={() => navigate('/')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                darkMode 
-                  ? 'text-gray-400 hover:text-purple-400'
-                  : 'text-gray-600 hover:text-purple-600'
-              }`}
-            >
-              ← Back to Home
-            </button>
           </div>
         </div>
       </div>

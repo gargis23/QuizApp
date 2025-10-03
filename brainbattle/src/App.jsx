@@ -13,6 +13,7 @@ import Quiz from './pages/Quiz';
 import Profile from './pages/Profile';
 import RoomLobby from './pages/RoomLobby';
 import WaitingPage from './pages/WaitingPage';
+import AvailableRooms from './pages/AvailableRooms';
 import AuthCallback from './pages/AuthCallback';
 import './App.css';
 
@@ -43,6 +44,7 @@ const AppContent = () => {
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/lobby" element={<ProtectedRoute><RoomLobby /></ProtectedRoute>} />
           <Route path="/waiting" element={<ProtectedRoute><WaitingPage /></ProtectedRoute>} />
+          {/* <Route path="/rooms" element={<ProtectedRoute><AvailableRooms /></ProtectedRoute>} /> */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

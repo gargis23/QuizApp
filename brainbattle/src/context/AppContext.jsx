@@ -1,207 +1,210 @@
-import React, { useState, useEffect, createContext, useContext } from 'react';
+import React, { createContext, useState, useEffect } from 'react';
+import { authAPI } from '../api/api';
+import socketClient from '../socket/socketClient';
 
-const AppContext = createContext();
+export const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
-  const [darkMode, setDarkMode] = useState(true);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('darkMode');
+    return saved ? JSON.parse(saved) : true;
+  });
+  const [loading, setLoading] = useState(true);
   const [gameState, setGameState] = useState({
-    inGame: false,
+    roomCode: null,
+    selectedCategory: null,
     currentQuestion: 0,
     score: 0,
-    timeLeft: 30,
-    powerups: { hint: 3, skip: 2, freeze: 1 },
+    answers: [],
     questions: [],
-    roomCode: null,
-    cheatingDetected: 0,
-    selectedCategory: null,
+    timeRemaining: 15,
+    timeLeft: 30,
+    inGame: false,
+    gameStarting: false,
+    waitingForHost: false,
     questionsAttempted: 0,
-    correctAnswers: 0
-  });
-  const [userResults, setUserResults] = useState([]);
-
-  const toggleTheme = () => {
-    const newDarkMode = !darkMode;
-    setDarkMode(newDarkMode);
-    
-    if (newDarkMode) {
-      document.documentElement.classList.add('dark');
-      document.documentElement.style.setProperty('--bg-primary', '#111827');
-      document.documentElement.style.setProperty('--bg-secondary', '#1F2937');
-      document.documentElement.style.setProperty('--text-primary', '#ffffff');
-      document.documentElement.style.setProperty('--text-secondary', '#9CA3AF');
-    } else {
-      document.documentElement.classList.remove('dark');
-      document.documentElement.style.setProperty('--bg-primary', '#F6F4FF');
-      document.documentElement.style.setProperty('--bg-secondary', '#F0EBFF');
-      document.documentElement.style.setProperty('--text-primary', '#1E1E2F');
-      document.documentElement.style.setProperty('--text-secondary', '#4B4B65');
+    correctAnswers: 0,
+    cheatingDetected: 0,
+    powerups: {
+      hint: 3,
+      skip: 2,
+      freeze: 1
     }
-    
-    localStorage.setItem('darkMode', newDarkMode);
+  });
+
+  useEffect(() => {
+    localStorage.setItem('darkMode', JSON.stringify(darkMode));
+  }, [darkMode]);
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    const token = localStorage.getItem('token');
+    const savedUser = localStorage.getItem('user');
+
+    if (token && savedUser) {
+      try {
+        const response = await authAPI.getMe();
+        if (response.data.success) {
+          const userData = response.data.data.user;
+          setUser(userData);
+          localStorage.setItem('user', JSON.stringify(userData));
+          
+          // Connect socket when user is authenticated
+          socketClient.connect(userData.id, token);
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setUser(null);
+      }
+    }
+    setLoading(false);
   };
 
-  const login = (userData) => {
-    setIsLoggedIn(true);
+  const login = (userData, token) => {
     setUser(userData);
+    localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(userData));
-  };
-
-  const updateUserProfile = (updatedData) => {
-    const newUserData = { ...user, ...updatedData };
-    setUser(newUserData);
-    localStorage.setItem('user', JSON.stringify(newUserData));
+    
+    // Connect socket on login
+    socketClient.connect(userData.id, token);
   };
 
   const logout = () => {
-    setIsLoggedIn(false);
     setUser(null);
+    localStorage.removeItem('token');
     localStorage.removeItem('user');
-    setGameState(prev => ({
-      ...prev,
-      inGame: false,
+    
+    // Disconnect socket on logout
+    socketClient.disconnect();
+    
+    setGameState({
+      roomCode: null,
+      selectedCategory: null,
       currentQuestion: 0,
       score: 0,
-      timeLeft: 30,
-      powerups: { hint: 3, skip: 2, freeze: 1 },
+      answers: [],
       questions: [],
-      roomCode: null,
-      cheatingDetected: 0,
+      timeRemaining: 15,
+      timeLeft: 30,
+      inGame: false,
+      gameStarting: false,
+      waitingForHost: false,
       questionsAttempted: 0,
-      correctAnswers: 0
-    }));
-  };
-
-  const addUserResult = (result) => {
-    const newResult = {
-      ...result,
-      userId: user?.email || 'anonymous',
-      userName: user?.name || 'Anonymous',
-      timestamp: new Date().toISOString()
-    };
-    
-    const updatedResults = [...userResults, newResult];
-    setUserResults(updatedResults);
-    localStorage.setItem('userResults', JSON.stringify(updatedResults));
-  };
-
-  // Google Sign-In function
-  const signInWithGoogle = () => {
-    // Simulate Google OAuth flow
-    const mockGoogleUser = {
-      name: "John Doe",
-      email: "johndoe@gmail.com",
-      picture: "https://via.placeholder.com/150/8B5CF6/FFFFFF?text=JD",
-      provider: "google"
-    };
-    
-    login(mockGoogleUser);
-    // Navigation handled by useNavigate in components
-  };
-
-  useEffect(() => {
-    // Load saved theme
-    const savedDarkMode = localStorage.getItem('darkMode');
-    if (savedDarkMode !== null) {
-      const isDark = JSON.parse(savedDarkMode);
-      setDarkMode(isDark);
-      
-      if (isDark) {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-        toggleTheme(); // Apply light mode styles
+      correctAnswers: 0,
+      cheatingDetected: 0,
+      powerups: {
+        hint: 3,
+        skip: 2,
+        freeze: 1
       }
-    }
+    });
+  };
 
-    // Load saved user
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      const userData = JSON.parse(savedUser);
-      setIsLoggedIn(true);
-      setUser(userData);
-    }
+  const toggleDarkMode = () => {
+    setDarkMode(prev => !prev);
+  };
 
-    // Load user results
-    const savedResults = localStorage.getItem('userResults');
-    if (savedResults) {
-      setUserResults(JSON.parse(savedResults));
-    }
-  }, []);
+  const resetGameState = () => {
+    setGameState({
+      roomCode: null,
+      selectedCategory: null,
+      currentQuestion: 0,
+      score: 0,
+      answers: [],
+      questions: [],
+      timeRemaining: 15,
+      timeLeft: 30,
+      inGame: false,
+      gameStarting: false,
+      waitingForHost: false,
+      questionsAttempted: 0,
+      correctAnswers: 0,
+      cheatingDetected: 0,
+      powerups: {
+        hint: 3,
+        skip: 2,
+        freeze: 1
+      }
+    });
+  };
 
-  // Anti-cheating detection
-  useEffect(() => {
-    if (gameState.inGame) {
-      const handleVisibilityChange = () => {
-        if (document.hidden) {
-          setGameState(prev => ({
-            ...prev,
-            cheatingDetected: prev.cheatingDetected + 1,
-            timeLeft: Math.max(0, prev.timeLeft - 10)
-          }));
-          
-          // Custom popup instead of alert
-          showPopup('⚠️ Tab switching detected! 10 seconds penalty applied.', 'warning');
-        }
-      };
-
-      const handleCopyPaste = (e) => {
-        if (e.ctrlKey && (e.key === 'c' || e.key === 'v')) {
-          e.preventDefault();
-          showPopup('🚫 Copy-paste is disabled during the quiz!', 'error');
-        }
-      };
-
-      document.addEventListener('visibilitychange', handleVisibilityChange);
-      document.addEventListener('keydown', handleCopyPaste);
-
-      return () => {
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-        document.removeEventListener('keydown', handleCopyPaste);
-      };
-    }
-  }, [gameState.inGame]);
-
-  // Custom popup function
   const showPopup = (message, type = 'info') => {
-    const popup = document.createElement('div');
-    popup.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm animate-popup ${
-      type === 'success' ? 'bg-green-600 text-white' :
-      type === 'warning' ? 'bg-yellow-600 text-white' :
-      type === 'error' ? 'bg-red-600 text-white' :
-      darkMode ? 'bg-gray-800 text-white border border-purple-500' : 'bg-white text-gray-800 border border-purple-300'
-    }`;
+    if (!message) return;
     
+    // Create a simple toast notification
+    const popup = document.createElement('div');
+    popup.className = `fixed top-4 right-4 z-50 p-4 rounded-lg max-w-sm transform transition-all duration-300 translate-x-0 shadow-lg`;
+    
+    // Style based on type
+    let bgColor, textColor, icon;
+    switch(type) {
+      case 'error':
+        bgColor = 'bg-red-500';
+        textColor = 'text-white';
+        icon = '❌';
+        break;
+      case 'success':
+        bgColor = 'bg-green-500';
+        textColor = 'text-white';
+        icon = '✅';
+        break;
+      case 'info':
+        bgColor = 'bg-blue-500';
+        textColor = 'text-white';
+        icon = 'ℹ️';
+        break;
+      default:
+        bgColor = 'bg-purple-500';
+        textColor = 'text-white';
+        icon = '📝';
+    }
+    
+    popup.className += ` ${bgColor} ${textColor}`;
     popup.innerHTML = `
-      <div class="flex items-center justify-between">
-        <span>${message}</span>
-        <button class="ml-4 text-lg font-bold" onclick="this.parentElement.parentElement.remove()">×</button>
+      <div class="flex items-center gap-2">
+        <span class="text-lg">${icon}</span>
+        <span class="font-medium">${String(message).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>
       </div>
     `;
     
     document.body.appendChild(popup);
     
-    // Auto remove after 5 seconds
+    // Remove after 3 seconds
     setTimeout(() => {
-      if (popup.parentElement) {
-        popup.remove();
+      if (popup.parentNode) {
+        popup.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+          if (popup.parentNode) {
+            popup.parentNode.removeChild(popup);
+          }
+        }, 300);
       }
-    }, 5000);
+    }, 3000);
+  };
+
+  const value = {
+    user,
+    setUser,
+    darkMode,
+    toggleDarkMode,
+    loading,
+    login,
+    logout,
+    gameState,
+    setGameState,
+    resetGameState,
+    showPopup
   };
 
   return (
-    <AppContext.Provider value={{
-  darkMode, setDarkMode, toggleTheme,
-  user, login, logout,
-      user, setUser, updateUserProfile,
-      gameState, setGameState,
-      userResults, setUserResults, addUserResult,
-      showPopup
-    }}>
+    <AppContext.Provider value={value}>
       {children}
     </AppContext.Provider>
   );
 };
-
-export { AppContext };

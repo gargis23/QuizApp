@@ -16,30 +16,35 @@ exports.updateProfile = async (req, res) => {
       });
     }
 
-    // Update fields
+    // Update fields - save everything to database
     if (name) user.name = name;
-    if (age) user.age = age;
+    if (age !== undefined) user.age = age;
     if (bio !== undefined) user.bio = bio;
-    if (picture) user.picture = picture;
+    if (picture !== undefined) user.picture = picture; // Save base64 or URL to database
 
     await user.save();
+
+    // Return updated user data
+    const updatedUser = {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      picture: user.picture,
+      age: user.age,
+      bio: user.bio,
+      provider: user.provider,
+      totalScore: user.totalScore,
+      gamesPlayed: user.gamesPlayed,
+      accuracy: user.accuracy,
+      bestScore: user.bestScore,
+      rank: user.rank
+    };
 
     res.status(200).json({
       success: true,
       message: 'Profile updated successfully',
       data: {
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          picture: user.picture,
-          age: user.age,
-          bio: user.bio,
-          totalScore: user.totalScore,
-          gamesPlayed: user.gamesPlayed,
-          accuracy: user.accuracy,
-          bestScore: user.bestScore
-        }
+        user: updatedUser
       }
     });
   } catch (error) {

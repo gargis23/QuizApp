@@ -45,7 +45,7 @@ export const authAPI = {
   register: (data) => api.post('/auth/register', data),
   login: (data) => api.post('/auth/login', data),
   googleAuth: (data) => api.post('/auth/google', data),
-  getMe: () => api.get('/auth/me')
+  getMe: () => api.get('/auth/me'),
 };
 
 // ==================== USER APIs ====================
@@ -76,14 +76,17 @@ export const leaderboardAPI = {
 // ==================== ROOM APIs ====================
 
 export const roomAPI = {
+  getAllRooms: () => api.get('/rooms'),
   createRoom: () => api.post('/rooms/create'),
   joinRoom: (roomCode) => api.post(`/rooms/join/${roomCode}`),
   leaveRoom: (roomCode) => api.post(`/rooms/leave/${roomCode}`),
   getRoom: (roomCode) => api.get(`/rooms/${roomCode}`),
   updateSettings: (roomCode, data) => api.put(`/rooms/${roomCode}/settings`, data),
   kickPlayer: (roomCode, userId) => api.post(`/rooms/${roomCode}/kick/${userId}`),
-  startGame: (roomCode) => api.post(`/rooms/${roomCode}/start`),
-  addChatMessage: (roomCode, message) => api.post(`/rooms/${roomCode}/chat`, { message })
+  startGame: (roomCode, data) => api.post(`/rooms/${roomCode}/start`, data),
+  addChatMessage: (roomCode, message) => api.post(`/rooms/${roomCode}/chat`, { message }),
+  quitGame: (roomCode) => api.post(`/rooms/${roomCode}/quit`),
+  endGame: (roomCode) => api.post(`/rooms/${roomCode}/end`)
 };
 
 // ==================== HEALTH CHECK ====================

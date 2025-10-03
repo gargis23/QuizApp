@@ -37,6 +37,10 @@ const roomSchema = new mongoose.Schema({
     enum: ['waiting', 'in-progress', 'completed', 'closed'],
     default: 'waiting'
   },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
   isEntryClosed: {
     type: Boolean,
     default: false
@@ -53,6 +57,14 @@ const roomSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  endedAt: {
+    type: Date,
+    default: null
+  },
+  gameStartedAt: {
+    type: Date,
+    default: null
+  },
   chatMessages: [{
     sender: {
       type: mongoose.Schema.Types.ObjectId,
@@ -64,7 +76,18 @@ const roomSchema = new mongoose.Schema({
       type: Date,
       default: Date.now
     }
-  }]
+  }],
+  results: [{
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  score: Number,
+  accuracy: Number,
+  correctAnswers: Number,
+  totalQuestions: Number,
+  completedAt: Date
+}]
 }, {
   timestamps: true
 });
