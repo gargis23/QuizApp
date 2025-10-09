@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { quizQuestions } from '../data/quizQuestions';
+import { quizQuestions } from '../data/QuizQuestions';
 import socketClient from '../socket/socketClient';
 import { roomAPI } from '../api/api';
 import { leaderboardAPI } from '../services/leaderboardAPI';
