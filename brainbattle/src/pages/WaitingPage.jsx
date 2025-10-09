@@ -28,14 +28,23 @@ const WaitingPage = () => {
       return;
     }
 
-    // Make sure socket is connected
-    const token = localStorage.getItem('token');
-    if (!socketClient.connected) {
-      socketClient.connect(user.id, token);
-    }
+    const setupSocketConnection = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        
+        // Ensure socket is connected before joining room
+        await socketClient.connect(user.id, token);
+        
+        // Join the room to get updates
+        await socketClient.joinRoom(gameState.roomCode, user.id, user.name);
+        
+        console.log('Successfully joined room:', gameState.roomCode);
+      } catch (error) {
+        console.error('Failed to setup socket connection:', error);
+      }
+    };
 
-    // Join the room to get updates
-    socketClient.joinRoom(gameState.roomCode, user.id, user.name);
+    setupSocketConnection();
 
     // Listen for room state from database
     socketClient.onRoomState((data) => {

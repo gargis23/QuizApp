@@ -54,7 +54,12 @@ export const AppProvider = ({ children }) => {
           localStorage.setItem('user', JSON.stringify(userData));
           
           // Connect socket when user is authenticated
-          socketClient.connect(userData.id, token);
+          try {
+            await socketClient.connect(userData.id, token);
+            console.log('Socket connected during auth check');
+          } catch (error) {
+            console.error('Failed to connect socket during auth check:', error);
+          }
         }
       } catch (error) {
         console.error('Auth check failed:', error);
@@ -66,13 +71,18 @@ export const AppProvider = ({ children }) => {
     setLoading(false);
   };
 
-  const login = (userData, token) => {
+  const login = async (userData, token) => {
     setUser(userData);
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(userData));
     
     // Connect socket on login
-    socketClient.connect(userData.id, token);
+    try {
+      await socketClient.connect(userData.id, token);
+      console.log('Socket connected during login');
+    } catch (error) {
+      console.error('Failed to connect socket during login:', error);
+    }
   };
 
   const logout = () => {
