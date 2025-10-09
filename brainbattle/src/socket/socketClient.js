@@ -1,12 +1,11 @@
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = import.meta.env.VITE_API_URL || 
-  (import.meta.env.NODE_ENV === 'production' 
-    ? 'https://brainbattle-backend.onrender.com' 
-    : 'http://localhost:5000');
+const SOCKET_URL = process.env.NODE_ENV === 'production' 
+  ? (import.meta.env.VITE_API_URL || 'https://brainbattle-backend.onrender.com')
+  : 'http://localhost:5000';
 
 console.log('Socket URL:', SOCKET_URL);
-console.log('Environment:', import.meta.env.NODE_ENV);
+console.log('Environment:', process.env.NODE_ENV);
 console.log('API URL env var:', import.meta.env.VITE_API_URL);
 
 class SocketClient {

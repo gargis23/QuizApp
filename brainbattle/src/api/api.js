@@ -5,6 +5,9 @@ const API_URL = process.env.NODE_ENV === 'production'
   ? process.env.VITE_API_URL || 'https://brainbattle-backend.onrender.com'
   : 'http://localhost:5000';
 
+console.log('API URL:', API_URL);
+console.log('Environment:', process.env.NODE_ENV);
+
 // Create axios instance
 const api = axios.create({
   baseURL: API_URL,
