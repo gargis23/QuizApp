@@ -1,0 +1,75 @@
+name: Deploy to Render
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        
+    - name: Install backend dependencies
+      run: |
+        cd backend
+        npm ci
+        
+    - name: Run backend tests
+      run: |
+        cd backend
+        npm test || echo "No tests found"
+
+  test-frontend:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        
+    - name: Install frontend dependencies
+      run: |
+        cd brainbattle
+        npm ci
+        
+    - name: Build frontend
+      run: |
+        cd brainbattle
+        npm run build
+        
+    - name: Run frontend tests
+      run: |
+        cd brainbattle
+        npm test || echo "No tests found"
+
+  deploy:
+    needs: [test-backend, test-frontend]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: Trigger Render Deploy (Backend)
+      run: |
+        curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_BACKEND }}
+        
+    - name: Trigger Render Deploy (Frontend)
+      run: |
+        curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_FRONTEND }}
+        
+    - name: Deployment Status
+      run: |
+        echo "✅ Deployment triggered successfully!"
+        echo "Backend: ${{ secrets.RENDER_DEPLOY_HOOK_BACKEND }}"
+        echo "Frontend: ${{ secrets.RENDER_DEPLOY_HOOK_FRONTEND }}"

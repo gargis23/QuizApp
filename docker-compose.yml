@@ -7,10 +7,10 @@ services:
       - "5000:5000"
     environment:
       - NODE_ENV=production
-      - MONGODB_URI=${MONGODB_URI}
-      - JWT_SECRET=${JWT_SECRET}
-      - SESSION_SECRET=${SESSION_SECRET}
-      - FRONTEND_URL=${FRONTEND_URL}
+      - MONGODB_URI=mongodb://admin:password123@mongodb:27017/brainbattle?authSource=admin
+      - JWT_SECRET=brainbattle_super_secret_key_2024_change_this_in_production
+      - SESSION_SECRET=brainbattle_session_secret_key_change_in_production
+      - FRONTEND_URL=http://localhost:3000
     depends_on:
       - mongodb
     restart: unless-stopped

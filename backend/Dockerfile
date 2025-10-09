@@ -8,6 +8,7 @@ WORKDIR /usr/src/app
 COPY package*.json ./
 
 # Install dependencies
+# RUN npm ci --only=production
 RUN npm ci --only=production
 
 # Copy app source
@@ -17,7 +18,7 @@ COPY . .
 EXPOSE 5000
 
 # Set environment to production
-ENV NODE_ENV=production
+# ENV NODE_ENV=production
 
 # Start the app
 CMD ["node", "server.js"]
