@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useApp } from '../context/useApp';
+import { useApp } from '../context/AppContext';
 import { roomAPI } from '../api/api';
 
 const RoomResults = () => {

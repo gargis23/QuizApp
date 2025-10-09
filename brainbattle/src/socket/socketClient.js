@@ -5,6 +5,10 @@ const SOCKET_URL = import.meta.env.VITE_API_URL ||
     ? 'https://brainbattle-backend.onrender.com' 
     : 'http://localhost:5000');
 
+console.log('Socket URL:', SOCKET_URL);
+console.log('Environment:', import.meta.env.NODE_ENV);
+console.log('API URL env var:', import.meta.env.VITE_API_URL);
+
 class SocketClient {
   constructor() {
     this.socket = null;
@@ -17,6 +21,8 @@ class SocketClient {
       return;
     }
 
+    console.log('Attempting to connect socket to:', SOCKET_URL);
+    
     this.socket = io(SOCKET_URL, {
       auth: {
         token
@@ -24,11 +30,13 @@ class SocketClient {
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5
+      reconnectionAttempts: 5,
+      transports: ['websocket', 'polling'], // Fallback to polling if websocket fails
+      timeout: 20000
     });
 
     this.socket.on('connect', () => {
-      console.log('Socket connected:', this.socket.id);
+      console.log('Socket connected successfully:', this.socket.id);
       this.connected = true;
       
       // Authenticate after connection
@@ -42,6 +50,7 @@ class SocketClient {
 
     this.socket.on('connect_error', (error) => {
       console.error('Socket connection error:', error);
+      console.error('Error details:', error.message);
     });
 
     return this.socket;

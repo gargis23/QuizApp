@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 // import { useGoogleLogin } from '@react-oauth/google';
-import { useApp } from '../context/useApp';
+import { useApp } from '../context/AppContext';
 import { authAPI } from '../api/api';
 
 const Login = () => {

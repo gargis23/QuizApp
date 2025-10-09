@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useApp } from '../context/useApp';
+import { useApp } from '../context/AppContext';
 
 const About = () => {
   const navigate = useNavigate();

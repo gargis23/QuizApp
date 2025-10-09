@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useApp } from '../context/useApp';
+import { useApp } from '../context/AppContext';
 import { authAPI } from '../api/api';
 
 const AuthCallback = () => {
