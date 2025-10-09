@@ -5,6 +5,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const session = require('express-session');
 const passport = require('./config/passport');
+const MongoStore = require('connect-mongo');
 const connectDB = require('./config/database');
 const socketHandler = require('./socket/socketHandler');
 
