@@ -5,7 +5,7 @@ export const leaderboardAPI = {
   // Get global leaderboard
   getGlobalLeaderboard: async () => {
     try {
-      const response = await api.get('/leaderboard/global');
+      const response = await api.get('/api/leaderboard/global');
       return response.data;
     } catch (error) {
       console.error('Error fetching global leaderboard:', error);
@@ -16,7 +16,7 @@ export const leaderboardAPI = {
   // Get room-wise leaderboard
   getRoomLeaderboard: async (roomCode) => {
     try {
-      const response = await api.get(`/leaderboard/room/${roomCode}`);
+      const response = await api.get(`/api/leaderboard/room/${roomCode}`);
       return response.data;
     } catch (error) {
       console.error('Error fetching room leaderboard:', error);
@@ -27,7 +27,7 @@ export const leaderboardAPI = {
   // Save game result
   saveGameResult: async (gameData) => {
     try {
-      const response = await api.post('/leaderboard/save-result', gameData);
+      const response = await api.post('/api/leaderboard/save-result', gameData);
       return response.data;
     } catch (error) {
       console.error('Error saving game result:', error);
@@ -38,7 +38,7 @@ export const leaderboardAPI = {
   // Get player history
   getPlayerHistory: async (playerId, page = 1, limit = 10) => {
     try {
-      const response = await api.get(`/leaderboard/player/${playerId}/history`, {
+      const response = await api.get(`/api/leaderboard/player/${playerId}/history`, {
         params: { page, limit }
       });
       return response.data;
@@ -51,7 +51,7 @@ export const leaderboardAPI = {
   // Get player statistics
   getPlayerStats: async (playerId) => {
     try {
-      const response = await api.get(`/leaderboard/player/${playerId}/stats`);
+      const response = await api.get(`/api/leaderboard/player/${playerId}/stats`);
       return response.data;
     } catch (error) {
       console.error('Error fetching player stats:', error);
