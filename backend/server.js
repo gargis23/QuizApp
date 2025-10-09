@@ -69,12 +69,28 @@ const quizRoutes = require('./routes/quizRoutes');
 const leaderboardRoutes = require('./routes/leaderboard');
 const roomRoutes = require('./routes/roomRoutes');
 
+// Add this route before your other routes
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: "BrainBattle API is running successfully!",
+    version: "1.0.0",
+    endpoints: {
+      auth: "/api/auth",
+      rooms: "/api/rooms", 
+      leaderboard: "/api/leaderboard",
+      users: "/api/users"
+    }
+  });
+});
+
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/quiz', quizRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/rooms', roomRoutes);
+
 
 // Health check route
 app.get('/api/health', (req, res) => {
