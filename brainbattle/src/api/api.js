@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Base URL for API
 const API_URL = process.env.NODE_ENV === 'production' 
-  ? process.env.VITE_API_URL || 'https://your-actual-render-url.onrender.com'
+  ? process.env.VITE_API_URL || 'https://brainbattle-backend.onrender.com'
   : 'http://localhost:5000';
 
 // Create axios instance

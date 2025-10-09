@@ -1,6 +1,9 @@
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+const SOCKET_URL = import.meta.env.VITE_API_URL || 
+  (import.meta.env.NODE_ENV === 'production' 
+    ? 'https://brainbattle-backend.onrender.com' 
+    : 'http://localhost:5000');
 
 class SocketClient {
   constructor() {
